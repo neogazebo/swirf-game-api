@@ -14,3 +14,10 @@
 $app->get('/', function () use ($app) {
     return $app->version();
 });
+
+$app->group(['namespace' => 'v1'], function() use ($app)
+{
+    $app->post('device/register', 'DeviceController@register');
+
+    $app->post('member/register', 'MemberController@register');
+});
