@@ -5,9 +5,13 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Hash;
+use App\Helpers\CommonConstants as CC;
+use App\Helpers\ResponseHelper as RS;
 
 class MemberController extends Controller
 {
+    use AppTrait;
+
     const ACCOUNT_PENDING   = 0;
     const ACCOUNT_ACTIVE    = 0;
     const ACCOUNT_SUSPENDED = 0;
@@ -60,25 +64,23 @@ class MemberController extends Controller
 
                 // TODO STORE REDIS
 
-                $status  = 200;
-                $code    = 1;
-                $result  = ['token' => $token];
-                $message = 'Success register';
+                $this->code = CC::RESPONSE_SUCCESS;
+                $this->results = ['token' => $token];
+                $this->message = 'Success register';
+
             } catch (\Exception $e) {
-                $status  = 500;
-                $code    = 0;
-                $result  = [];
-                $message = 'Error server';
+
+                $this->status = RS::HTTP_INTERNAL_SERVER_ERROR;
+                $this->message = 'Error server';
             }
         }else{
-            $status  = 400;
-            $code    = 0;
-            $result  = $validator->errors();
-            $message = 'Error Parameters';
+
+            $this->status = RS::HTTP_BAD_REQUEST;
+            $this->results = $validator->errors();
+            $this->message = 'Error Parameters';
         }
 
-        $content = ['code' => $code, 'message' => $message, 'result' => $result];
-        return response($content, $status);
+        return $this->json();
     }
 
     public function login_app(request $request)

@@ -8,6 +8,11 @@ class Swirf
     private $input = null;
     private $isEncrypted = false;
 
+    public function isEncrypted()
+    {
+        return $this->isEncrypted;
+    }
+
     public function getRequestRaw()
     {
         return $this->request_raw;
