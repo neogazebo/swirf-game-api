@@ -25,5 +25,14 @@ $app->group(['prefix' => 'v1', 'namespace' => 'V1'], function() use ($app)
 
     $app->post('member/login_google', 'MemberController@login_google');
 
-    $app->post('member/logout', 'MemberController@logout');
+    $app->post('member/logout', [
+        'middleware' => 'Auth',
+        'uses'       => 'MemberController@logout'
+    ]);
+
+    // TEST
+    $app->get('member/get_info', [
+        'middleware' => 'Auth',
+        'uses'       => 'MemberController@get_info'
+    ]);
 });

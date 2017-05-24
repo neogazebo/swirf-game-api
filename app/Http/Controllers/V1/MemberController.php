@@ -60,7 +60,7 @@ class MemberController extends Controller
                 $token   = $pay['data']['token'];
                 $dokuId  = $pay['data']['doku_id'];
 
-                \DB::table('tbl_member')->where('mem_id', $memId)->update(['mem_acc_id' => $accId]);
+                \DB::table('tbl_member')->where('mem_id', $memId)->update(['mem_acc_id' => $accId, 'mem_token' => $token]);
 
                 // TODO STORE REDIS
 
@@ -97,8 +97,16 @@ class MemberController extends Controller
 
             try {
                 if($member == null) {
-                    throw new \Exception('Wrong Credential Account');
-                }else{
+                    $status     = 200;
+                    $code       = 0;
+                    $result     = [];
+                    $message    = 'Wrong Credential Account';
+                } elseif($member->mem_status_flag == 2) {
+                    $status     = 403;
+                    $code       = 0;
+                    $result     = [];
+                    $message    = 'Your Account Suspended';
+                } else {
                     if (Hash::check($request->password, $member->mem_password))
                     {
                         // UPDATE DEVICE
@@ -111,22 +119,29 @@ class MemberController extends Controller
                             throw new \Exception('Error server');
                         }
                         $token   = $pay['data']['token'];
+                        $dokuId  = $pay['data']['doku_id'];
+
+                        \DB::table('tbl_member')->where('mem_id', $member->mem_id)->update(['mem_token' => $token]);
 
                         // TODO STORE REDIS
+                        $this->cacheMemberRedis($member->mem_id);
 
                         $status  = 200;
                         $code    = 1;
                         $result  = ['token' => $token];
                         $message = 'Success login';
                     }else{
-                        throw new \Exception('Wrong Credential Account');
+                        $status  = 200;
+                        $code    = 0;
+                        $result  = [];
+                        $message = 'Wrong Credential Account';
                     }
                 }
             } catch(\Exception $e) {
-                $status  = 200;
+                $status  = 500;
                 $code    = 0;
                 $result  = [];
-                $message = $e->getMessage();
+                $message = 'Error server';
             }
         }else{
             $status  = 400;
@@ -174,7 +189,11 @@ class MemberController extends Controller
                     throw new \Exception();
                 }
 
-                $token   = 1; //$pay['data']['token'];
+                $token   = $pay['data']['token'];
+                $accId   = $pay['data']['id'];
+                $dokuId  = $pay['data']['doku_id'];
+
+                \DB::table('tbl_member')->where('mem_id', $memId)->update(['mem_acc_id' => $accId, 'mem_token' => $token]);
 
                 // TODO STORE REDIS
 
@@ -206,10 +225,11 @@ class MemberController extends Controller
 
         if (!$validator->fails())
         {
-            // TODO hwo to get  mem_id by token ?
-
             // UPDATE DEVICE
-            \DB::table('tbl_device')->where('dev_device_id', $request->device_id)->update(['dev_mem_id' => null]);
+            \DB::table('tbl_device')->where([
+                ['dev_device_id', '=', $request->device_id],
+                ['dev_mem_id',    '=', $request->mem_id],
+            ])->update(['dev_mem_id' => null, 'mem_token' => null]);
 
             $status  = 200;
             $code    = 1;
@@ -224,6 +244,11 @@ class MemberController extends Controller
 
         $content = ['code' => $code, 'message' => $message, 'result' => $result];
         return response($content, $status);
+    }
+
+    public function get_info(Request $request)
+    {
+        echo 'hi ' . $request->mem_id;
     }
 
     private function storeMember($chanel, $name, $phone, $password, $email, $gmail, $status, $country)
@@ -255,6 +280,10 @@ class MemberController extends Controller
             ]);
 
         return $id;
+    }
+
+    private function cacheMemberRedis($memId) {
+        \Cache::forever($memId, json_encode(['a'=>1, 'b'=>2]));
     }
 
     private function signPay($email, $chanel, $phone, $pass, $country)

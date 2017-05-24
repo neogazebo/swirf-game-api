@@ -4,41 +4,45 @@ namespace App\Http\Controllers\V1;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use App\Helpers\CommonConstants as CC;
+use App\Helpers\ResponseHelper as RS;
 
 class DeviceController extends Controller
 {
-    public function register(Request $request)
+    use AppTrait;
+
+    public function register()
     {
-        $validator = Validator::make($request->all(), [
-            'os'            => 'required|string',
-            'os_version'    => 'required|string',
-            'brand'         => 'required|string',
-            'model'         => 'required|string',
-            'imsi'          => 'required|string',
-            'imei'          => 'required|string',
-            'device_id'     => 'required|string',
-            'adv_id'        => 'required|string',
-            'push_id'       => 'required|string'
+        $validator = Validator::make(\Swirf::input(null,true), [
+            'os'            => 'required',
+            'os_version'    => 'required',
+            'brand'         => 'required',
+            'model'         => 'required',
+            'imsi'          => 'required',
+            'imei'          => 'required',
+            'device_id'     => 'required',
+            'adv_id'        => 'required',
+            'push_id'       => 'required'
         ]);
 
         if (!$validator->fails())
         {
-            $results = \DB::table('tbl_device')->where('dev_device_id', $request->device_id)->first();
+            $results = \DB::table('tbl_device')->where('dev_device_id', \Swirf::input()->device_id)->first();
             $time    = time();
 
             try {
                 if ($results == null) {
                     $insert = \DB::table('tbl_device')->insert(
                         [
-                            'dev_os'            => $request->os,
-                            'dev_os_version'    => $request->os_version,
-                            'dev_brand'         => $request->brand,
-                            'dev_model'         => $request->model,
-                            'dev_imsi'          => $request->imsi,
-                            'dev_imei'          => $request->imei,
-                            'dev_device_id'     => $request->device_id,
-                            'dev_adv_id'        => $request->adv_id,
-                            'dev_push_id'       => $request->push_id,
+                            'dev_os'            => \Swirf::input()->os,
+                            'dev_os_version'    => \Swirf::input()->os_version,
+                            'dev_brand'         => \Swirf::input()->brand,
+                            'dev_model'         => \Swirf::input()->model,
+                            'dev_imsi'          => \Swirf::input()->imsi,
+                            'dev_imei'          => \Swirf::input()->imei,
+                            'dev_device_id'     => \Swirf::input()->device_id,
+                            'dev_adv_id'        => \Swirf::input()->adv_id,
+                            'dev_push_id'       => \Swirf::input()->push_id,
                             'dev_created_at'    => $time,
                             'dev_updated_at'    => $time
                         ]);
@@ -49,7 +53,7 @@ class DeviceController extends Controller
                     $message = 'Store new device';
                 } else {
                     /*
-                    $update = \DB::table('tbl_device')->where('dev_device_id', $request->device_id)->update(['dev_updated_at' => $time]);
+                    $update = \DB::table('tbl_device')->where('dev_device_id', \Swirf::input()->device_id)->update(['dev_updated_at' => $time]);
                     if($update == 0) {
                         throw new Exception('error update');
                     }
@@ -57,23 +61,19 @@ class DeviceController extends Controller
                     $message = 'Device is registered';
                 }
 
-                $status = 200;
-                $code   = 1;
-                $result = [];
+
+                $this->code    = CC::RESPONSE_SUCCESS;
+                $this->message = $message;
+
             } catch (Exception $e) {
-                $message = $e->getMessage();
-                $status  = 500;
-                $code    = 0;
-                $result  = [];
+                $this->status  = RS::HTTP_INTERNAL_SERVER_ERROR;
+                $this->message = 'Error server';
             }
         }else{
-            $message = 'Error Parameters';
-            $status  = 400;
-            $code    = 0;
-            $result  = $validator->errors();
+            $this->status = RS::HTTP_BAD_REQUEST;
+            $this->results = $validator->errors();
+            $this->message = 'Error Parameters';
         }
-
-        $content = ['code' => $code, 'message' => $message, 'result' => $result];
-        return response($content, $status);
+        return $this->json();
     }
 }

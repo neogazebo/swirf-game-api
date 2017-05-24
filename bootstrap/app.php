@@ -27,7 +27,7 @@ $app = new Laravel\Lumen\Application(
 
  $app->withEloquent();
 
-class_alias('App\Facades\SwirfFacade', 'SWIRF');
+ class_alias('App\Facades\SwirfFacade', 'SWIRF');
 
 /*
 |--------------------------------------------------------------------------
@@ -49,6 +49,10 @@ $app->singleton(
     Illuminate\Contracts\Console\Kernel::class,
     App\Console\Kernel::class
 );
+
+$app->routeMiddleware([
+    'Auth' => App\Http\Middleware\Auth::class,
+]);
 
 /*
 |--------------------------------------------------------------------------
@@ -88,6 +92,8 @@ $app->singleton(
 // $app->register(App\Providers\AuthServiceProvider::class);
 // $app->register(App\Providers\EventServiceProvider::class);
 $app->register(App\Providers\SwirfServiceProvider::class);
+
+$app->register(Illuminate\Redis\RedisServiceProvider::class);
 
 /*
 |--------------------------------------------------------------------------
