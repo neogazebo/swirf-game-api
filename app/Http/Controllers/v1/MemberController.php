@@ -121,6 +121,7 @@ class MemberController extends Controller
                         \DB::table('tbl_member')->where('mem_id', $member->mem_id)->update(['mem_token' => $token]);
 
                         // TODO STORE REDIS
+                        $this->cacheMemberRedis($member->mem_id);
 
                         $status  = 200;
                         $code    = 1;
@@ -221,10 +222,11 @@ class MemberController extends Controller
 
         if (!$validator->fails())
         {
-            // TODO hwo to get  mem_id by token ?
-
             // UPDATE DEVICE
-            \DB::table('tbl_device')->where('dev_device_id', $request->device_id)->update(['dev_mem_id' => null, 'mem_token' => null]);
+            \DB::table('tbl_device')->where([
+                ['dev_device_id', '=', $request->device_id],
+                ['dev_mem_id',    '=', $request->mem_id],
+            ])->update(['dev_mem_id' => null, 'mem_token' => null]);
 
             $status  = 200;
             $code    = 1;
@@ -243,7 +245,7 @@ class MemberController extends Controller
 
     public function get_info(Request $request)
     {
-        echo 'hi';
+        echo 'hi ' . $request->mem_id;
     }
 
     private function storeMember($chanel, $name, $phone, $password, $email, $gmail, $status, $country)
@@ -275,6 +277,10 @@ class MemberController extends Controller
             ]);
 
         return $id;
+    }
+
+    private function cacheMemberRedis($memId) {
+        \Cache::forever($memId, json_encode(['a'=>1, 'b'=>2]));
     }
 
     private function signPay($email, $chanel, $phone, $pass, $country)
