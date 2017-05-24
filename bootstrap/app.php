@@ -27,6 +27,8 @@ $app = new Laravel\Lumen\Application(
 
  $app->withEloquent();
 
+ class_alias('App\Facades\SwirfFacade', 'SWIRF');
+
 /*
 |--------------------------------------------------------------------------
 | Register Container Bindings
@@ -67,6 +69,10 @@ $app->routeMiddleware([
 //    App\Http\Middleware\ExampleMiddleware::class
 // ]);
 
+ $app->middleware([
+    App\Http\Middleware\CoreMiddleware::class
+ ]);
+
 // $app->routeMiddleware([
 //     'auth' => App\Http\Middleware\Authenticate::class,
 // ]);
@@ -85,6 +91,7 @@ $app->routeMiddleware([
 // $app->register(App\Providers\AppServiceProvider::class);
 // $app->register(App\Providers\AuthServiceProvider::class);
 // $app->register(App\Providers\EventServiceProvider::class);
+$app->register(App\Providers\SwirfServiceProvider::class);
 
  $app->register(Illuminate\Redis\RedisServiceProvider::class);
 
