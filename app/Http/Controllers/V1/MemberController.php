@@ -113,7 +113,7 @@ class MemberController extends Controller
                             \DB::table('tbl_device')->where('dev_device_id', \Swirf::input()->device_id)->update(['dev_mem_id' => $member->mem_id]);
 
                             // SIGN PAY
-                            $pay     = $this->signPay(\Swirf::input()->email, $member->mem_signup_channel, $member->mem_mobile, \Swirf::input()->password, $member->mem_country);
+                            $pay     = $this->signPayApp(\Swirf::input()->email, $member->mem_mobile, \Swirf::input()->password, $member->mem_country);
 
                             if($pay['success'] == 0) {
                                 throw new \Exception('Error server');
