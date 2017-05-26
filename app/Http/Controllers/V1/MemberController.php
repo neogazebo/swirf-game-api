@@ -7,6 +7,8 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Hash;
 use App\Helpers\CommonConstants as CC;
 use App\Helpers\ResponseHelper as RS;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Redis;
 
 class MemberController extends Controller
 {
@@ -64,8 +66,8 @@ class MemberController extends Controller
 
                 \DB::commit();
 
-                // TODO STORE REDIS
-                //$this->cacheMember(self::LOGIN_APP, $memId, \Swirf::input()->email, \Swirf::input()->name, \Swirf::input()->phone);
+//                 TODO STORE REDIS
+                $this->cacheMember(self::LOGIN_APP, $memId, \Swirf::input()->email, \Swirf::input()->name, \Swirf::input()->phone);
 
                 $this->code = CC::RESPONSE_SUCCESS;
                 $this->results = ['token' => $token];
@@ -238,7 +240,7 @@ class MemberController extends Controller
 
     public function get_info(Request $request)
     {
-        $value = Cache::get('member_' . $request->mem_id);
+        $value = Redis::get('member:' . 999);
 
         $content = ['code' => 1, 'message' => '', 'result' => $value];
         return response($content, 200);
@@ -285,7 +287,7 @@ class MemberController extends Controller
                 'phone'     => $phone,
             ];
 
-        \Cache::forever('member_' . $memId, json_encode($member));
+            Redis::set('member:' . $memId, json_encode($member));
     }
 
     private function signPayApp($email, $phone, $pass, $country)
