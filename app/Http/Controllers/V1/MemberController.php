@@ -50,8 +50,8 @@ class MemberController extends Controller
                     \DB::table('tbl_device')->where('dev_device_id', \Swirf::input()->device_id)->update(['dev_mem_id' => $memId]);
 
                     // SIGN PAY
-                    $pay   = $this->signPayApp(\Swirf::input()->email, self::LOGIN_APP, \Swirf::input()->phone, \Swirf::input()->password, self::COUNTRY);
-
+                    $pay   = $this->signPayApp(\Swirf::input()->email, \Swirf::input()->phone, \Swirf::input()->password, self::COUNTRY);
+                    
                     if($pay['success'] == 0) {
                         throw new \Exception();
                     }
@@ -313,7 +313,7 @@ class MemberController extends Controller
 
         $response = curl_exec($ch);
         curl_close($ch);
-
+        
         return json_decode($response, true);
     }
 
