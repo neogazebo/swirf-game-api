@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Http\Controllers\V1;
 
 use App\Http\Controllers\Controller;
@@ -8,78 +9,75 @@ use Illuminate\Support\Facades\Hash;
 use App\Helpers\CommonConstants as CC;
 use App\Helpers\ResponseHelper as RS;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Redis;
+use App\Helpers\RedisHelper as Redis;
 
-class MemberController extends Controller
-{
+class MemberController extends Controller {
+
     use AppTrait;
 
-    const ACCOUNT_PENDING   = 0;
-    const ACCOUNT_ACTIVE    = 0;
+    const ACCOUNT_PENDING = 0;
+    const ACCOUNT_ACTIVE = 0;
     const ACCOUNT_SUSPENDED = 0;
+    const COUNTRY = 'ID';
+    const LOGIN_APP = 1;
+    const LOGIN_GOOGLE = 2;
 
-    const COUNTRY           = 'ID';
-
-    const LOGIN_APP         = 1;
-    const LOGIN_GOOGLE      = 2;
-
-    public function register()
-    {
-        $validator = Validator::make(\Swirf::input(null,true), [
-            'email'     => [
-                            'required',
-                            'email',
-                            'unique:tbl_member,mem_email',
-                        ],
-            'password'  => 'required|string',
-            'phone'     => [
-                            'required',
-                            'unique:tbl_member,mem_mobile',
-                        ],
-            'name'      => 'required|string',
+    public function register() {
+        $validator = Validator::make(\Swirf::input(null, true), [
+            'email' => [
+                'required',
+                'email',
+                'unique:tbl_member,mem_email',
+            ],
+            'password' => 'required|string',
+            'phone' => [
+                'required',
+                'unique:tbl_member,mem_mobile',
+            ],
+            'name' => 'required|string',
             'device_id' => 'required|string'
         ]);
 
-        if (!$validator->fails())
-        {
+        if (!$validator->fails()) {
             try {
                 \DB::beginTransaction();
 
-                    // STORE MEMBER
-                    $memId = $this->storeMember(self::LOGIN_APP, \Swirf::input()->name, \Swirf::input()->phone, \Swirf::input()->password, \Swirf::input()->email, null, null, self::ACCOUNT_PENDING, self::COUNTRY);
+                // STORE MEMBER
+                $memId = $this->storeMember(self::LOGIN_APP, \Swirf::input()->name, \Swirf::input()->phone, \Swirf::input()->password, \Swirf::input()->email, null, null, self::ACCOUNT_PENDING, self::COUNTRY);
 
-                    // UPDATE DEVICE
-                    \DB::table('tbl_device')->where('dev_device_id', \Swirf::input()->device_id)->update(['dev_mem_id' => $memId]);
+                // UPDATE DEVICE
+                \DB::table('tbl_device')->where('dev_device_id', \Swirf::input()->device_id)->update(['dev_mem_id' => $memId]);
 
-                    // SIGN PAY
-                    $pay   = $this->signPayApp(\Swirf::input()->email, \Swirf::input()->phone, \Swirf::input()->password, self::COUNTRY);
-                    
-                    if($pay['success'] == 0) {
-                        throw new \Exception();
-                    }
+                // SIGN PAY
+                $pay = $this->signPayApp(\Swirf::input()->email, \Swirf::input()->phone, \Swirf::input()->password, self::COUNTRY);
 
-                    $accId   = $pay['data']['id'];
-                    $token   = $pay['data']['token'];
-                    $dokuId  = $pay['data']['doku_id'];
+                if ($pay['success'] == 0) {
+                    throw new \Exception();
+                }
 
-                    \DB::table('tbl_member')->where('mem_id', $memId)->update(['mem_acc_id' => $accId, 'mem_token' => $token]);
+                $accId = $pay['data']['id'];
+                $token = $pay['data']['token'];
+                $dokuId = $pay['data']['doku_id'];
+
+                \DB::table('tbl_member')->where('mem_id', $memId)->update(['mem_acc_id' => $accId, 'mem_token' => $token]);
 
                 \DB::commit();
 
-//                 TODO STORE REDIS
-                $this->cacheMember(self::LOGIN_APP, $memId, \Swirf::input()->email, \Swirf::input()->name, \Swirf::input()->phone);
+                //Store member profile to redis
+		$profile = \DB::select('select mem_id, mem_acc_id, mem_name, mem_birthdate, mem_country, mem_gender, mem_mobile, mem_activity_indicator, mem_spending_indicator, mem_level_indicator from tbl_member where mem_id = '.$memId.' limit 0,1');
+		
+                Redis::setProfileCache($memId, json_encode($profile[0]));
 
                 $this->code = CC::RESPONSE_SUCCESS;
                 $this->results = ['token' => $token];
                 $this->message = 'Success register';
-
             } catch (\Exception $e) {
                 \DB::rollBack();
 
                 $this->status = RS::HTTP_INTERNAL_SERVER_ERROR;
                 $this->message = 'Error server';
             }
-        }else{
+        } else {
             $this->status = RS::HTTP_BAD_REQUEST;
             $this->results = $validator->errors();
             $this->message = 'Error Parameters';
@@ -88,61 +86,58 @@ class MemberController extends Controller
         return $this->json();
     }
 
-    public function login_app()
-    {
-        $validator = Validator::make(\Swirf::input(null,true), [
-            'email'     => 'required|email',
-            'password'  => 'required|string',
-            'device_id' => 'required|string'
+    public function login_app() {
+        $validator = Validator::make(\Swirf::input(null, true), [
+                    'email' => 'required|email',
+                    'password' => 'required|string',
+                    'device_id' => 'required|string'
         ]);
 
-        if (!$validator->fails())
-        {
+        if (!$validator->fails()) {
             $member = \DB::table('tbl_member')->where('mem_email', \Swirf::input()->email)->first();
 
             try {
-                if($member == null) {
+                if ($member == null) {
                     $this->message = 'Wrong Credential Account';
-                } elseif($member->mem_status_flag == 2) {
-                    $this->status  = RS::HTTP_FORBIDDEN;
+                } elseif ($member->mem_status_flag == 2) {
+                    $this->status = RS::HTTP_FORBIDDEN;
                     $this->message = 'Your account has suspended';
                 } else {
-                    if (Hash::check(\Swirf::input()->password, $member->mem_password))
-                    {
+                    if (Hash::check(\Swirf::input()->password, $member->mem_password)) {
                         \DB::beginTransaction();
 
-                            // UPDATE DEVICE
-                            \DB::table('tbl_device')->where('dev_device_id', \Swirf::input()->device_id)->update(['dev_mem_id' => $member->mem_id]);
+                        // UPDATE DEVICE
+                        \DB::table('tbl_device')->where('dev_device_id', \Swirf::input()->device_id)->update(['dev_mem_id' => $member->mem_id]);
 
-                            // SIGN PAY
-                            $pay     = $this->signPayApp(\Swirf::input()->email, $member->mem_mobile, \Swirf::input()->password, $member->mem_country);
+                        // SIGN PAY
+                        $pay = $this->signPayApp(\Swirf::input()->email, $member->mem_mobile, \Swirf::input()->password, $member->mem_country);
 
-                            if($pay['success'] == 0) {
-                                throw new \Exception('Error server');
-                            }
-                            $token   = $pay['data']['token'];
-                            $dokuId  = $pay['data']['doku_id'];
+                        if ($pay['success'] == 0) {
+                            throw new \Exception('Error server');
+                        }
+                        $token = $pay['data']['token'];
+                        $dokuId = $pay['data']['doku_id'];
 
-                            \DB::table('tbl_member')->where('mem_id', $member->mem_id)->update(['mem_token' => $token]);
+                        \DB::table('tbl_member')->where('mem_id', $member->mem_id)->update(['mem_token' => $token]);
 
                         \DB::commit();
 
                         $this->code = CC::RESPONSE_SUCCESS;
                         $this->results = ['token' => $token];
                         $this->message = 'Success login';
-                    }else{
+                    } else {
                         $this->message = 'Wrong Credential Account';
                     }
                 }
-            } catch(\Exception $e) {
+            } catch (\Exception $e) {
                 \DB::rollBack();
 
                 $this->status = RS::HTTP_INTERNAL_SERVER_ERROR;
                 $this->message = 'Error server';
             }
-        }else{
+        } else {
             $this->status = RS::HTTP_BAD_REQUEST;
-            $this->code   = CC::RESPONSE_FAILED;
+            $this->code = CC::RESPONSE_FAILED;
             $this->message = 'Error Parameters';
             $this->results = $validator->errors();
         }
@@ -150,59 +145,57 @@ class MemberController extends Controller
         return $this->json();
     }
 
-    public function login_google()
-    {
-        $validator = Validator::make(\Swirf::input(null,true), [
-            'email'     => 'required|email',
-            'google_id' => 'required',
-            'name'      => 'required',
-            'device_id' => 'required|string'
+    public function login_google() {
+        $validator = Validator::make(\Swirf::input(null, true), [
+                    'email' => 'required|email',
+                    'google_id' => 'required',
+                    'name' => 'required',
+                    'device_id' => 'required|string'
         ]);
 
-        if (!$validator->fails())
-        {
+        if (!$validator->fails()) {
             $member = \DB::table('tbl_member')->where('mem_g_email', \Swirf::input()->email)->first();
 
             try {
                 \DB::beginTransaction();
 
-                    if($member == null) {
-                        // STORE MEMBER
-                        $memId = $this->storeMember(self::LOGIN_GOOGLE, \Swirf::input()->name, null, null, null, \Swirf::input()->email, \Swirf::input()->google_id, self::ACCOUNT_PENDING, self::COUNTRY);
-                    }else{
-                        $memId = $member->mem_id;
-                    }
+                if ($member == null) {
+                    // STORE MEMBER
+                    $memId = $this->storeMember(self::LOGIN_GOOGLE, \Swirf::input()->name, null, null, null, \Swirf::input()->email, \Swirf::input()->google_id, self::ACCOUNT_PENDING, self::COUNTRY);
+                } else {
+                    $memId = $member->mem_id;
+                }
 
-                    // UPDATE DEVICE
-                    \DB::table('tbl_device')->where('dev_device_id', \Swirf::input()->device_id)->update(['dev_mem_id' => $memId]);
+                // UPDATE DEVICE
+                \DB::table('tbl_device')->where('dev_device_id', \Swirf::input()->device_id)->update(['dev_mem_id' => $memId]);
 
-                    // SIGN PAY
-                    $pay = $this->signPayGoogle(\Swirf::input()->email, null, self::COUNTRY, \Swirf::input()->google_id, \Swirf::input()->name);
+                // SIGN PAY
+                $pay = $this->signPayGoogle(\Swirf::input()->email, null, self::COUNTRY, \Swirf::input()->google_id, \Swirf::input()->name);
 
-                    if($pay['success'] == 0) {
-                        throw new \Exception();
-                    }
+                if ($pay['success'] == 0) {
+                    throw new \Exception();
+                }
 
-                    $token   = $pay['data']['token'];
-                    $accId   = $pay['data']['id'];
-                    $dokuId  = $pay['data']['doku_id'];
+                $token = $pay['data']['token'];
+                $accId = $pay['data']['id'];
+                $dokuId = $pay['data']['doku_id'];
 
-                    \DB::table('tbl_member')->where('mem_id', $memId)->update(['mem_acc_id' => $accId, 'mem_token' => $token]);
+                \DB::table('tbl_member')->where('mem_id', $memId)->update(['mem_acc_id' => $accId, 'mem_token' => $token]);
 
                 \DB::commit();
 
                 $this->code = CC::RESPONSE_SUCCESS;
                 $this->results = ['token' => $token];
                 $this->message = 'Success login';
-            } catch(\Exception $e) {
+            } catch (\Exception $e) {
                 \DB::rollBack();
 
                 $this->status = RS::HTTP_INTERNAL_SERVER_ERROR;
                 $this->message = 'Error server';
             }
-        }else{
+        } else {
             $this->status = RS::HTTP_BAD_REQUEST;
-            $this->code   = CC::RESPONSE_FAILED;
+            $this->code = CC::RESPONSE_FAILED;
             $this->message = 'Error Parameters';
             $this->results = $validator->errors();
         }
@@ -212,25 +205,24 @@ class MemberController extends Controller
 
     public function logout(Request $request) {
         $validator = Validator::make($request->all(), [
-            'device_id' => 'required|string'
+                    'device_id' => 'required|string'
         ]);
 
-        if (!$validator->fails())
-        {
+        if (!$validator->fails()) {
             // UPDATE DEVICE
             \DB::table('tbl_device')->where([
                 ['dev_device_id', '=', $request->device_id],
-                ['dev_mem_id',    '=', $request->mem_id],
+                ['dev_mem_id', '=', $request->mem_id],
             ])->update(['dev_mem_id' => null, 'mem_token' => null]);
 
-            $status  = 200;
-            $code    = 1;
-            $result  = [];
+            $status = 200;
+            $code = 1;
+            $result = [];
             $message = 'Success Logout';
-        }else{
-            $status  = 400;
-            $code    = 0;
-            $result  = $validator->errors();
+        } else {
+            $status = 400;
+            $code = 0;
+            $result = $validator->errors();
             $message = 'Error Parameters';
         }
 
@@ -238,42 +230,47 @@ class MemberController extends Controller
         return response($content, $status);
     }
 
-    public function get_info(Request $request)
-    {
-        $value = Redis::get('member:' . 999);
+    /**
+     * This is for testing purpose, don't forget to remove
+     * @param integer $id
+     * @return json result
+     */
+    public function getInfo($id) {
+        $value = Redis::getProfileCache($id);
+	
+	Redis::deleteProfileCache($id);
 
-        $content = ['code' => 1, 'message' => '', 'result' => $value];
+        $content = ['code' => 1, 'message' => '', 'result' => json_decode($value)];
         return response($content, 200);
     }
 
-    private function storeMember($chanel, $name, $phone, $password, $email, $gmail, $google_id, $status, $country)
-    {
+    private function storeMember($chanel, $name, $phone, $password, $email, $gmail, $google_id, $status, $country) {
         $id = \DB::table('tbl_member')->insertGetId(
-            [
-                'mem_signup_channel'        => $chanel,
-                'mem_name'                  => $name,
-                'mem_mobile'                => $phone,
-                'mem_email'                 => $email,
-                'mem_g_email'               => $gmail,
-                'mem_password'              => Hash::make($password),
-                'mem_signed_nda'            => 0,
-                'mem_given_password'        => 0,
-                'mem_change_password_mail'  => 0,
-                'mem_level'                 => 0,
-                'mem_points'                => 0,
-                'mem_points_network'        => 0,
-                'mem_balance'               => 0,
-                'mem_invite_slot'           => 0,
-                'mem_invite_count'          => 0,
-                'mem_nr_invite'             => 0,
-                'mem_active_flag'           => 0,
-                'mem_active_indicator'      => 0,
-                'mem_invoice_allowed'       => 0,
-                'mem_cookie_value'          => 0,
-                'mem_google_id'             => $google_id,
-                'mem_status_flag'           => $status,
-                'mem_country'               => $country,
-            ]);
+                [
+                    'mem_signup_channel' => $chanel,
+                    'mem_name' => $name,
+                    'mem_mobile' => $phone,
+                    'mem_email' => $email,
+                    'mem_g_email' => $gmail,
+                    'mem_password' => Hash::make($password),
+                    'mem_signed_nda' => 0,
+                    'mem_given_password' => 0,
+                    'mem_change_password_mail' => 0,
+                    'mem_level' => 0,
+                    'mem_points' => 0,
+                    'mem_points_network' => 0,
+                    'mem_balance' => 0,
+                    'mem_invite_slot' => 0,
+                    'mem_invite_count' => 0,
+                    'mem_nr_invite' => 0,
+                    'mem_active_flag' => 0,
+                    'mem_active_indicator' => 0,
+                    'mem_invoice_allowed' => 0,
+                    'mem_cookie_value' => 0,
+                    'mem_google_id' => $google_id,
+                    'mem_status_flag' => $status,
+                    'mem_country' => $country,
+        ]);
 
         return $id;
     }
@@ -281,73 +278,72 @@ class MemberController extends Controller
     private function cacheMember($memId, $channel, $email, $name, $phone) {
 
         $member = [
-                'channel'   => $channel,
-                'email'     => $email,
-                'name'      => $name,
-                'phone'     => $phone,
-            ];
+            'channel' => $channel,
+            'email' => $email,
+            'name' => $name,
+            'phone' => $phone,
+        ];
 
-            Redis::set('member:' . $memId, json_encode($member));
+        Redis::set('member:' . $memId, json_encode($member));
     }
 
-    private function signPayApp($email, $phone, $pass, $country)
-    {
+    private function signPayApp($email, $phone, $pass, $country) {
         $param = [
-            'email'         => $email,
-            'phone_number'  => $phone,
-            'password'      => $pass,
-            'country'       => $country
+            'email' => $email,
+            'phone_number' => $phone,
+            'password' => $pass,
+            'country' => $country
         ];
 
         $param = json_encode($param);
 
-        $key   = env('PAY_KEY');
-        $secret= env('PAY_SECRET');
-        $url   = env('PAY_URL_SIGN') . '/v1/auth/signin';
+        $key = env('PAY_KEY');
+        $secret = env('PAY_SECRET');
+        $url = env('PAY_URL_SIGN') . '/v1/auth/signin';
 
-        $ch    = curl_init();
+        $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, $url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, TRUE);
         curl_setopt($ch, CURLOPT_HEADER, FALSE);
         curl_setopt($ch, CURLOPT_POST, TRUE);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, $param) ;
-        curl_setopt($ch, CURLOPT_HTTPHEADER, array("Content-Type: application/json","app-key: ".$key,"app-secret: ".$secret,"lang : en"));
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $param);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, array("Content-Type: application/json", "app-key: " . $key, "app-secret: " . $secret, "lang : en"));
 
         $response = curl_exec($ch);
         curl_close($ch);
-        
+
         return json_decode($response, true);
     }
 
-    private function signPayGoogle($email, $phone, $country, $google_id, $name)
-    {
+    private function signPayGoogle($email, $phone, $country, $google_id, $name) {
         $param = [
-            'email'         => $email,
-            'phone_number'  => 'not set',
-            'country'       => $country,
-            'google'        => [
-                'id'   => $google_id,
+            'email' => $email,
+            'phone_number' => 'not set',
+            'country' => $country,
+            'google' => [
+                'id' => $google_id,
                 'name' => $name,
             ]
         ];
 
         $param = json_encode($param);
 
-        $key   = env('PAY_KEY');
-        $secret= env('PAY_SECRET');
-        $url   = env('PAY_URL_SIGN') . '/v1/auth/signin/google';
+        $key = env('PAY_KEY');
+        $secret = env('PAY_SECRET');
+        $url = env('PAY_URL_SIGN') . '/v1/auth/signin/google';
 
-        $ch    = curl_init();
+        $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, $url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, TRUE);
         curl_setopt($ch, CURLOPT_HEADER, FALSE);
         curl_setopt($ch, CURLOPT_POST, TRUE);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, $param) ;
-        curl_setopt($ch, CURLOPT_HTTPHEADER, array("Content-Type: application/json","app-key: ".$key,"app-secret: ".$secret,"lang : en"));
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $param);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, array("Content-Type: application/json", "app-key: " . $key, "app-secret: " . $secret, "lang : en"));
 
         $response = curl_exec($ch);
         curl_close($ch);
 
         return json_decode($response, true);
     }
+
 }

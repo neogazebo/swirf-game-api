@@ -13,4 +13,8 @@ class CommonConstants
 {
     const RESPONSE_SUCCESS = 1;
     const RESPONSE_FAILED = 0;
+
+    //REDIS CACHE
+    const PREFIX_PROFILE = 'profile:';
+
 }

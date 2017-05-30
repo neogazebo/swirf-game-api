@@ -31,8 +31,5 @@ $app->group(['prefix' => 'v1', 'namespace' => 'V1'], function() use ($app)
     ]);
 
     // TEST
-    $app->get('member/get_info', [
-        'middleware' => 'Auth',
-        'uses'       => 'MemberController@get_info'
-    ]);
+    $app->get('member/info/{id}', 'MemberController@getInfo');
 });
