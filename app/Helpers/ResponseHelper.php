@@ -11,6 +11,7 @@ namespace App\Helpers;
 
 use App\Helpers\TimeHelper as TH;
 use Illuminate\Http\Response as IR;
+use App\Helpers\CommonConstants as CC;
 
 class ResponseHelper
 {
@@ -77,32 +78,32 @@ class ResponseHelper
     const HTTP_NOT_EXTENDED = 510;
     const HTTP_NETWORK_AUTHENTICATION_REQUIRED = 511;
 
-    public static function successResponse($code, $message = null, $data = null)
+    public static function successResponse($status, $message = null, $data = null)
     {
-        $result = array('success' => true, 'message' => $message);
+        $result = ['code' => CC::RESPONSE_SUCCESS, 'message' => $message];
         if (!($data == null)) {
             $result['data'] = $data;
         }
         $result['elapsed'] = TH::serverElapsedTime();
-        return (new IR($result, $code))->header('Content-Type', 'application/json');
+        return (new IR($result, $status))->header('Content-Type', 'application/json');
     }
 
-    public static function errorResponse($code, $message)
+    public static function errorResponse($status, $message)
     {
-        return (new IR(array(
-            'success' => false,
+        return (new IR([
+            'code' => CC::RESPONSE_FAILED,
             'message' => $message,
             'elapsed' => TH::serverElapsedTime(),
-        ), $code))->header('Content-Type', 'application/json');
+        ], $status))->header('Content-Type', 'application/json');
     }
 
-    public static function errorResponseDetailed($code, $message, $error)
+    public static function errorResponseDetailed($status, $message, $error)
     {
-        return (new IR(array(
-            'success' => false,
+        return (new IR([
+            'code' => CC::RESPONSE_FAILED,
             'message' => $message,
             'error' => $error,
             'elapsed' => TH::serverElapsedTime(),
-        ), $code))->header('Content-Type', 'application/json');
+        ], $status))->header('Content-Type', 'application/json');
     }
 }

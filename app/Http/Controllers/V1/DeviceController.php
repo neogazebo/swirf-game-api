@@ -93,9 +93,9 @@ class DeviceController extends Controller {
 
 	$statement = 'select * from tbl_support where sup_app_os = :os and sup_app_version = :app_version and sup_api_version = :api_version and sup_package_name = :package_name and sup_valid = '.self::SUPP_VALID.' limit 0,1';
 	$support = \DB::select($statement, [
-	    'os' => \Swirf::input()->os,
-	    'app_version' => \Swirf::input()->app_version,
-	    'api_version' => \Swirf::input()->api_version,
+//	    'os' => \Swirf::input()->os,
+//	    'app_version' => \Swirf::input()->app_version,
+//	    'api_version' => \Swirf::input()->api_version,
 	    'package_name' => \Swirf::input()->package_name
 	]);
 	
