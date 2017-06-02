@@ -73,6 +73,10 @@ $app->routeMiddleware([
     App\Http\Middleware\CoreMiddleware::class
  ]);
 
+ $app->routeMiddleware([
+     'token' => App\Http\Middleware\TokenMiddleware::class,
+ ]);
+
 // $app->routeMiddleware([
 //     'auth' => App\Http\Middleware\Authenticate::class,
 // ]);
