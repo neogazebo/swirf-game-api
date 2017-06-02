@@ -18,12 +18,17 @@ $app->get('/', function () use ($app) {
 $app->group(['prefix' => 'v1', 'namespace' => 'V1'], function() use ($app)
 {
     $app->post('device/register', 'DeviceController@register');
-
     $app->post('member/register', 'MemberController@register');
-
     $app->post('member/login_app', 'MemberController@login_app');
-
     $app->post('member/login_google', 'MemberController@login_google');
-
-    $app->post('member/logout', 'MemberController@logout');
+    $app->post('member/logout', [
+        'middleware' => 'Auth',
+        'uses'       => 'MemberController@logout'
+    ]);
+    
+    $app->group(['prefix' => 'webhook'],function() use ($app){
+	$app->post('/profile', 'AdminWebhookController@profile');
+    });
+    // TEST
+    $app->get('member/info/{id}', 'MemberController@getInfo');
 });
