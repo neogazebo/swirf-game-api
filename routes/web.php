@@ -35,7 +35,12 @@ $app->group(['prefix' => 'v1', 'namespace' => 'V1'], function() use ($app)
 	$app->post('/profile', 'AdminWebhookController@profile');
     });
     
-    $app->post('device/register', 'DeviceController@register');
+    $app->group(['prefix' => 'device'], function() use ($app)
+    {
+	$app->post('register', 'DeviceController@register');
+	$app->post('check', 'DeviceController@securityCheck');
+	
+    });
     //test
     $app->get('member/info/{id}', 'MemberController@getInfo');
 });
