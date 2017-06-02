@@ -17,18 +17,25 @@ $app->get('/', function () use ($app) {
 
 $app->group(['prefix' => 'v1', 'namespace' => 'V1'], function() use ($app)
 {
-    $app->post('device/register', 'DeviceController@register');
-    $app->post('member/register', 'MemberController@register');
-    $app->post('member/login_app', 'MemberController@login_app');
-    $app->post('member/login_google', 'MemberController@login_google');
-    $app->post('member/logout', [
-        'middleware' => 'Auth',
-        'uses'       => 'MemberController@logout'
-    ]);
+    //Auth endpoint
+    $app->group(['prefix' => 'auth'], function() use ($app)
+    {
+	$app->post('register', 'MemberController@register');
+	$app->post('login', 'MemberController@login_app');
+	$app->post('login/google', 'MemberController@login_google');
+	$app->post('logout', [
+	    'middleware' => 'Auth',
+	    'uses'       => 'MemberController@logout'
+	]);
+    });
     
+
+    //Admin webhooks
     $app->group(['prefix' => 'webhook'],function() use ($app){
 	$app->post('/profile', 'AdminWebhookController@profile');
     });
-    // TEST
+    
+    $app->post('device/register', 'DeviceController@register');
+    //test
     $app->get('member/info/{id}', 'MemberController@getInfo');
 });
