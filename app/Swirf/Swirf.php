@@ -16,6 +16,7 @@ class Swirf {
     private $token = null;
     private $longitude = null;
     private $latitude = null;
+    private $headers = [];
 
     public function isEncrypted()
     {
@@ -131,42 +132,44 @@ class Swirf {
 	return $this->longitude;
     }
 
-    public function processHeader($header)
+    public function processHeader($headers)
     {
-	if (isset($header['latitude']))
+	if (isset($headers['latitude']))
 	{
-	    $this->latitude = $header['latitude'];
+	    $this->latitude = $headers['latitude'][0];
 	}
 
-	if (isset($header['longitude']))
+	if (isset($headers['longitude']))
 	{
-	    $this->longitude = $header['longitude'];
+	    $this->longitude = $headers['longitude'][0];
 	}
 
-	if (isset($header['Lang']))
+	if (isset($headers['Lang']))
 	{
-	    $this->lang = $header['Lang'];
+	    $this->lang = $headers['Lang'][0];
 	}
 
-	if (isset($header['os']))
+	if (isset($headers['os']))
 	{
-	    $this->os = $header['os'];
+	    $this->os = $headers['os'][0];
 	}
 
-	if (isset($header['appVer']))
+	if (isset($headers['application-version']))
 	{
-	    $this->app_version = $header['appVer'];
+	    $this->app_version = $headers['application-version'][0];
 	}
 
-	if (isset($header['apiVer']))
+	if (isset($headers['api-version']))
 	{
-	    $this->api_version = $header['apiVer'];
+	    $this->api_version = $headers['api-version'][0];
 	}
 
-	if (isset($header['token']))
+	if (isset($headers['token']))
 	{
-	    $this->token = $header['token'];
+	    $this->token = $headers['token'][0];
 	}
+	
+	$this->headers = $headers;
     }
 
 }

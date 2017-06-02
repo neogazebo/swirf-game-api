@@ -37,17 +37,17 @@ class DeviceController extends Controller {
 		if ($results == null)
 		{
 		    $insert = \DB::table('tbl_device')->insert([
-		'dev_os' => \Swirf::input()->os,
-		'dev_os_version' => \Swirf::input()->os_version,
-		'dev_brand' => \Swirf::input()->brand,
-		'dev_model' => \Swirf::input()->model,
-		'dev_imsi' => \Swirf::input()->imsi,
-		'dev_imei' => \Swirf::input()->imei,
-		'dev_device_id' => \Swirf::input()->device_id,
-		'dev_adv_id' => \Swirf::input()->adv_id,
-		'dev_push_id' => \Swirf::input()->push_id,
-		'dev_created_at' => $time,
-		'dev_updated_at' => $time
+			'dev_os' => \Swirf::input()->os,
+			'dev_os_version' => \Swirf::input()->os_version,
+			'dev_brand' => \Swirf::input()->brand,
+			'dev_model' => \Swirf::input()->model,
+			'dev_imsi' => \Swirf::input()->imsi,
+			'dev_imei' => \Swirf::input()->imei,
+			'dev_device_id' => \Swirf::input()->device_id,
+			'dev_adv_id' => \Swirf::input()->adv_id,
+			'dev_push_id' => \Swirf::input()->push_id,
+			'dev_created_at' => $time,
+			'dev_updated_at' => $time
 		    ]);
 
 		    if ($insert == 0)
@@ -82,29 +82,40 @@ class DeviceController extends Controller {
 	return $this->json();
     }
 
-    public function securityCheck(Request $request)
+    public function securityCheck()
     {
 	$validator = Validator::make(\Swirf::input(null, true), [
-	    'os' => 'required',
 	    'package_name' => 'required',
-	    'app_version' => 'required',
-	    'api_version' => 'required',
 	]);
 
-	$statement = 'select * from tbl_support where sup_app_os = :os and sup_app_version = :app_version and sup_api_version = :api_version and sup_package_name = :package_name and sup_valid = '.self::SUPP_VALID.' limit 0,1';
-	$support = \DB::select($statement, [
-//	    'os' => \Swirf::input()->os,
-//	    'app_version' => \Swirf::input()->app_version,
-//	    'api_version' => \Swirf::input()->api_version,
-	    'package_name' => \Swirf::input()->package_name
-	]);
-	
-	if(count($support) != 0)
+	if (!$validator->fails())
 	{
-	    $this->code = CC::RESPONSE_SUCCESS;
+	    $statement = 'select * from tbl_support where sup_app_os = :os and sup_app_version = :app_version and sup_api_version = :api_version and sup_package_name = :package_name and sup_valid = '.self::SUPP_VALID.' limit 0,1';
+	    
+	    $support = \DB::select($statement, [
+		'os' => \Swirf::getOS(),
+		'app_version' => \Swirf::getAppVersion(),
+		'api_version' => \Swirf::getApiVersion(),
+		'package_name' => \Swirf::input()->package_name
+	    ]);
+
+	    if(count($support) != 0)
+	    {
+		$this->code = CC::RESPONSE_SUCCESS;
+		$this->message = 'App is suported';
+	    }
+	    else
+	    {
+		$this->status = RS::HTTP_UNAUTHORIZED;
+		$this->message = 'This App is Unsupported. Please Update with newer app';
+	    }
 	}
-	
-	$this->status = RS::HTTP_UNAUTHORIZED;
+	else
+	{
+	    $this->message = 'Error Parameter';
+	    $this->status = RS::HTTP_BAD_REQUEST;
+	    $this->results = $validator->errors();
+	}
 	
 	return $this->json();
     }

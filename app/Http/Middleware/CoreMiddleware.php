@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 use App\Helpers\ResponseHelper as RH;
+use Illuminate\Support\Facades\Validator;
 
 use Closure;
 
@@ -36,26 +37,19 @@ class CoreMiddleware {
 	    'success' => true,
 	    'message' => null,
 	];
-	$required = [
-	    'latitude' => 'latitude is required',
-	    'longitude' => 'longitude is required',
-	    'os' => 'os is required',
-	    'appVer' => 'application Version is required',
-	    'apiVer' => 'api Version is required'
-	];
-	foreach ($required as $key => $message) {
-	    if (!(array_key_exists($key, $headers)))
-	    {
-		$result['success'] = false;
-		$result['message'] = $message;
-	    } else
-	    {
-		if (!(isset($headers[$key])))
-		{
-		    $result['success'] = false;
-		    $result['message'] = $message;
-		}
-	    }
+	    
+	$validator = Validator::make($headers, [
+	    'latitude' => 'required',
+	    'longitude' => 'required',
+	    'os' => 'required',
+	    'application-version' => 'required',
+	    'api-version' => 'required'
+	]);
+	
+	if($validator->fails())
+	{
+	    $result['success'] = false;
+	    $result['message'] = $validator->errors();
 	}
 
 	return array2object($result);
