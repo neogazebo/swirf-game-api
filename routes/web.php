@@ -47,9 +47,4 @@ $app->group(['prefix' => 'v1', 'namespace' => 'V1'], function() use ($app) {
 		$app->get('collected', 'ItemController@collectedItem');
 	});
     });
-
-
-    
-    //test
-    $app->get('member/info/{id}', 'MemberController@getInfo');
 });
