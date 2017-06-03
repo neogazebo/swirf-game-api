@@ -5,6 +5,7 @@ namespace App\Http\Controllers\V1;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 use App\Helpers\CommonConstants as CC;
 use App\Helpers\ResponseHelper as RS;
 use App\Helpers\SwirfPayHelper as SP;
@@ -21,12 +22,18 @@ class AuthController extends Controller {
 	    'email' => [
 		'required',
 		'email',
-		'unique:tbl_member,mem_email', //TODO : check unique base on signupchanenl
+		Rule::unique('tbl_member', 'mem_email')->where(function ($query) {
+		    $query->where('mem_signup_channel', CC::MEMBER_LOGIN_VIA_EMAIL);
+		})
+//		'unique:tbl_member,mem_email'
 	    ],
 	    'password' => 'required|string',
 	    'phone' => [
 		'required',
-		'unique:tbl_member,mem_mobile', //TODO : check unique base on signupchanenl
+		Rule::unique('tbl_member', 'mem_mobile')->where(function ($query) {
+		    $query->where('mem_signup_channel', CC::MEMBER_LOGIN_VIA_EMAIL);
+		})
+//		'unique:tbl_member,mem_mobile'
 	    ],
 	    'name' => 'required|string',
 	    'device_id' => 'required|string'
@@ -73,7 +80,7 @@ class AuthController extends Controller {
 		}
 		else
 		{
-		    $this->message = $swirf_account['message'];
+		    $this->message = 'error from pay api : '.$swirf_account['message'];
 		    $this->status = RS::HTTP_UNAUTHORIZED;
 		}
 	    }
@@ -163,11 +170,11 @@ class AuthController extends Controller {
     public function loginGoogle()
     {
 	$validator = Validator::make(\Swirf::input(null, true), [
-	    'email' => 'required|email',
-	    'google_id' => 'required',
-	    'name' => 'required',
-	    'device_id' => 'required|string',
-	    'phone' => 'string'
+		    'email' => 'required|email',
+		    'google_id' => 'required',
+		    'name' => 'required',
+		    'device_id' => 'required|string',
+		    'phone' => 'string'
 	]);
 
 	if (!$validator->fails())
@@ -186,9 +193,9 @@ class AuthController extends Controller {
 		{
 		    try {
 			\DB::beginTransaction();
-			
+
 			$member = $this->__getMemberbyAccountId($swirf_account['data']['id']);
-			if($member == null)
+			if ($member == null)
 			{
 			    $member_id = $this->__storeMember($swirf_account['data']['id'], CC::MEMBER_LOGIN_VIA_GOOGLE, \Swirf::input()->name, \Swirf::input()->phone, \Swirf::input()->email, \Swirf::input()->email, \Swirf::input()->google_id, CC::MEMBER_STATUS_ACTIVE, self::COUNTRY);
 			}
@@ -198,9 +205,9 @@ class AuthController extends Controller {
 			}
 			\DB::table('tbl_device')->where('dev_device_id', \Swirf::input()->device_id)->update(['dev_mem_id' => $member_id]);
 			//TODO : put member data to redis
-			
+
 			\DB::commit();
-			
+
 			$this->code = CC::RESPONSE_SUCCESS;
 			$this->results = ['token' => $swirf_account['data']['token']];
 			$this->message = 'Success login';
@@ -258,7 +265,6 @@ class AuthController extends Controller {
 	return response($content, $status);
     }
 
-    
     private function __storeMember($account_id, $chanel, $name, $phone, $email, $gmail, $google_id, $status, $country)
     {
 	$id = \DB::table('tbl_member')->insertGetId([
