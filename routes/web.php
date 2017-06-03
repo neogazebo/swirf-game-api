@@ -18,12 +18,12 @@ $app->get('/', function () use ($app) {
 $app->group(['prefix' => 'v1', 'namespace' => 'V1'], function() use ($app) {
     //Auth endpoint
     $app->group(['prefix' => 'auth'], function() use ($app) {
-	$app->post('register', 'MemberController@register');
-	$app->post('login', 'MemberController@login_app');
-	$app->post('login/google', 'MemberController@login_google');
+	$app->post('register', 'AuthController@register');
+	$app->post('login', 'AuthController@login');
+	$app->post('login/google', 'AuthController@loginGoogle');
 	$app->post('logout', [
 	    'middleware' => 'Auth',
-	    'uses' => 'MemberController@logout'
+	    'uses' => 'AuthController@logout'
 	]);
     });
     

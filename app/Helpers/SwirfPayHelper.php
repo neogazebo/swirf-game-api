@@ -89,9 +89,11 @@ class SwirfPayHelper {
      */
     public static function signinGoogle($email, $phone, $country, $google_id, $name)
     {
+	$result = new RDH();
+	
 	$param = [
 	    'email' => $email,
-	    'phone_number' => 'not set',
+	    'phone_number' => $phone,
 	    'country' => $country,
 	    'google' => [
 		'id' => $google_id,
@@ -114,9 +116,35 @@ class SwirfPayHelper {
 	curl_setopt($ch, CURLOPT_HTTPHEADER, ["Content-Type: application/json", "app-key: " . $key, "app-secret: " . $secret, "lang : en"]);
 
 	$response = curl_exec($ch);
+	$err = curl_errno($ch);
+	$http_status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+	
 	curl_close($ch);
-
-	return json_decode($response, true);
+	
+	if($err)
+	{
+	    $result->setStatus($http_status);
+	}
+	else if($http_status >= RS::HTTP_INTERNAL_SERVER_ERROR)
+	{
+	    $result->setStatus($http_status);
+	}
+	else
+	{
+	    $data = json_decode($response, true);
+	    if(empty($data))
+	    {
+		$result->setStatus(RS::HTTP_INTERNAL_SERVER_ERROR);
+	    }
+	    else
+	    {
+		$result->setCode(CC::RESPONSE_SUCCESS);
+		unset($data['elapsed']);
+		$result->setResult($data);
+	    }
+	}
+	
+	return $result;
     }
 	    
 }
