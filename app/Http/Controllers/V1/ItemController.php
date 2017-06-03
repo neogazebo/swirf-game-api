@@ -20,14 +20,14 @@ class ItemController extends Controller {
 			geo_id,
 			geo_latitude,
 			geo_longitude,
-			itm_id,
-			itm_name, 
-			itm_point_value,
-			clc_id,
-			clc_name,
-			clc_description,
-			par_id,
-			par_name 
+			itm_id as item_id,
+			itm_name as item_name, 
+			itm_point_value as item_point_value,
+			clc_id as collection_id,
+			clc_name as collection_name,
+			clc_description as collection_description,
+			par_id as partner_id,
+			par_name as partner_name 
 			from tbl_geo_position 
 			left join tbl_item on geo_item_id=itm_id
 			left join tbl_collection on itm_collection_id=clc_id
@@ -64,31 +64,52 @@ class ItemController extends Controller {
     {
 		$statement = '
 			select 
-			col_id,
-			col_datetime,
-			clc_name,
-			clc_description, 
-			clc_start_date,
-			clc_end_date,
-			clc_status,
-			itm_name, 
-			itm_point_value,
-			itm_rarity,
-			par_id,
-			par_name
-			from tbl_collectible
-			left join tbl_collection on col_collection_id=clc_id
-			left join tbl_item on col_item_id=itm_id
-			left join tbl_partner on col_partner_id=par_id
-			where col_member_id=:mem_id order by clc_id;
+			coc_id as collected_id,
+			coc_collection_id as collection_id,
+			clc_name as collection_name,
+			clc_description as collection_description,
+			clc_start_date as collection_start_date,
+			clc_end_date as collection_end_date,
+			coc_datetime as collected_creation_date,
+			coc_flag as collected_flag,
+			coc_completed_datetime as collected_completed_date,
+			coc_redeemed_datetime as collected_redeemed_date,
+			clc_partner_id as partner_id,
+			clc_status as collection_status,
+			par_name as partner_name
+			from tbl_collectible_collection
+			inner join tbl_collection on coc_collection_id=clc_id
+			left join tbl_partner on clc_partner_id=par_id
+			where coc_member_id=:mem_id
 		';
 	    
-	    $items = \DB::select($statement, [
+	    $collections = \DB::select($statement, [
 		'mem_id' => \Swirf::getMember()->mem_id,
 	    ]);
+		$collected=[];
+		foreach ($collections as $collection) {
+			$statement = '
+				select 
+				col_id as collected_item_id,
+				col_datetime as collected_item_date,
+				itm_name as item_name, 
+				itm_point_value as item_point_value,
+				itm_rarity as rarity
+				from tbl_collectible
+				left join tbl_item on col_item_id=itm_id
+				where col_member_id=:mem_id and col_collection_id=:clc_id
+			';
+			
+			$items = \DB::select($statement, [
+			'mem_id' => \Swirf::getMember()->mem_id,
+			'clc_id' => $collection->collection_id,
+			]);
+			$collected=['collection'=>$collection, 'items'=>$items];
+		}
+		
 		if (count($items)<>0) {
 			$this->code = CC::RESPONSE_SUCCESS;
-			$this->results = ['count'=> count($items), 'items' => $items];
+			$this->results = ['collected' => $collected];
 			$this->message = "Successful pulling the collected items.";	
 		} else {
 			$this->code = CC::RESPONSE_SUCCESS;
