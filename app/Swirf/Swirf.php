@@ -3,6 +3,9 @@
 namespace App\Swirf;
 
 use App\Helpers\CommonConstants as CC;
+use App\Helpers\TokenHelper as TH;
+use App\Helpers\ReturnDataHelper as RDH;
+use App\Helpers\ResponseHelper as RH;
 
 class Swirf {
 
@@ -17,6 +20,8 @@ class Swirf {
     private $longitude = null;
     private $latitude = null;
     private $headers = [];
+    private $memberAccountID = null;
+    private $dataToken = null;
 
     public function isEncrypted()
     {
@@ -170,6 +175,53 @@ class Swirf {
 	}
 	
 	$this->headers = $headers;
+    }
+    
+    public function validToken()
+    {
+	$result = new RDH();
+	
+	if(!empty($this->token))
+	{
+	    $this->dataToken = TH::parse($this->token);
+	    if($this->dataToken->valid)
+	    {
+		$this->dataToken->data;
+		//TODO other checking related on the payload
+
+		$data = json_decode($this->dataToken->data);
+
+		$this->memberAccountID = $data->account_id;
+		$result->setCode(CC::RESPONSE_SUCCESS);
+	    }
+	    else
+	    {
+		$result->status(RH::HTTP_INVALID_TOKEN);
+		$result->setMessage('Invalid Token');
+	    }
+	}
+	else
+	{
+	    $result->status(RH::HTTP_INVALID_TOKEN);
+	    $result->setMessage('Missing Token');
+	}
+	
+//	dump($result);exit;
+	
+	return $result;
+	
+    }
+    
+    public function getMember(){
+	
+	$statement = 'select * from tbl_member where mem_acc_id = :acc_id limit 0,1';
+	
+	$member = \DB::select($statement, ['acc_id' => $this->memberAccountID]);
+	if(count($member) > 0){
+	    return $member[0];
+	}
+	
+	return null;
     }
 
 }
