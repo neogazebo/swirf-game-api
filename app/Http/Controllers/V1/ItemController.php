@@ -23,6 +23,7 @@ class ItemController extends Controller {
 			itm_id as item_id,
 			itm_name as item_name, 
 			itm_point_value as item_point_value,
+			itm_image as image,
 			clc_id as collection_id,
 			clc_name as collection_name,
 			clc_description as collection_description,
@@ -94,7 +95,8 @@ class ItemController extends Controller {
 				col_datetime as collected_item_date,
 				itm_name as item_name, 
 				itm_point_value as item_point_value,
-				itm_rarity as rarity
+				itm_rarity as rarity,
+				itm_image as image
 				from tbl_collectible
 				left join tbl_item on col_item_id=itm_id
 				where col_member_id=:mem_id and col_collection_id=:clc_id
@@ -113,10 +115,129 @@ class ItemController extends Controller {
 			$this->message = "Successful pulling the collected items.";	
 		} else {
 			$this->code = CC::RESPONSE_SUCCESS;
-			$this->results = ['count'=> count($items), 'items' => $items];
+			$this->results = ['collected' => $collected];
 			$this->message = "No collected items, please try to grab first.";
 		}
 		return $this->json();
     }
+	
+	public function grabItem()
+    {
+		$validator = Validator::make(\Swirf::input(null, true), [
+			'geo_id' => 'required',
+			'item_id' => 'required',
+			'collection_id' => 'required',
+			'partner_id' => 'required',
+			'element_id' => 'required',
+		]);
+	
+		if (!$validator->fails())
+		{
+			$member = \Swirf::getMember();
+			$time = time();
+			$payload=[];
+			try {
+                \DB::beginTransaction();
+				//0.get item point value and user's current point
+				$current_point = \DB::table('tbl_point_history')
+					->where([['poi_member_id', '=', $member->mem_id]])
+					->max('poi_id')
+					->poi_current;
+				if (empty($current_point)) {
+					$current_point = 0;
+				}
+				$point_value = \DB::table('tbl_item')
+					->where('itm_id', \Swirf::input()->item_id)
+					->first()
+					->itm_point_value;
+					
+				//1.update geo_position, flag the record 
+				\DB::table('tbl_geo_position')->where('geo_id', \Swirf::input()->geo_id)->update(['geo_broadcast' => '0', 'geo_counter' => '1']);
+				
+				//2.update tbl_item add increment on itm_counter for particular item
+				\DB::table('tbl_item')->where('itm_id', \Swirf::input()->item_id)->increment('itm_counter', 1);
+				
+				//3.check collection is exist in tbl_collectible_collection for particular member,
+				$collected = \DB::table('tbl_collectible_collection')
+					->where([['coc_member_id', '=', $member->mem_id],['coc_collection_id', '=', \Swirf::input()->collection_id]])
+					->first();
+				
+				//4.if not exist insert new collection
+				if (count($collected)==0) {
+					\DB::table('tbl_collectible_collection')->insert(
+						[
+							'coc_member_id' => $member->mem_id,
+							'coc_collection_id' => \Swirf::input()->collection_id,
+							'coc_datetime' => $time,
+						]
+					);
+
+				}
+				
+				//5.insert into tbl_collectible for particular item
+				\DB::table('tbl_collectible')->insert(
+					[
+						'col_member_id' => $member->mem_id,
+						'col_collection_id' => \Swirf::input()->collection_id,
+						'col_item_id' => \Swirf::input()->item_id,
+						'col_geoposition_id' => \Swirf::input()->geo_id,
+						'col_element_id' => \Swirf::input()->element_id,
+						'col_partner_id' => \Swirf::input()->partner_id,
+						'col_datetime' => $time,
+						'col_latitude' => \Swirf::getLatitude(),
+						'col_longitude' => \Swirf::getLongitude(),
+					]
+				);
+				
+				//6.count items under particalr collection, if count == 6 then flag the collection as completed
+				// and insert the reward to the tbl_member_redeemable
+				$collected_items = \DB::table('tbl_collectible')
+					->where([['col_member_id', '=', $member->mem_id],['col_collection_id', '=', \Swirf::input()->collection_id]])
+					->count();
+				if ($collected_items==6) {
+					\DB::table('tbl_collectible_collection')
+						->where(['coc_member_id', '=', $member->mem_id], ['coc_collection_id', '=', \Swirf::input()->collection_id])
+						->update(['coc_flag' => '1', 'coc_update_datetime' => $time, 'coc_completed_datetime' => $time]);
+				}
+				
+				//7.add point earned into tbl_point_history
+					\DB::table('tbl_point_history')->insert(
+						[
+							'poi_member_id' => $member->mem_id,
+							'poi_datetime' => $time,
+							'poi_point_type_id' => '103', //collected item
+							'poi_method' => 'C',
+							'poi_value' => $point_value,
+							'poi_current' => $current_point + $point_value,
+						]
+					);
+				//8.clear redis for that user profile
+				Redis::deleteProfileCache($member->mem_id);
+				
+				//9.return completed_flag, remaining items to complete
+				$payload=[
+					'point_value' => $point_value,
+					'total_point' => $current_point + $point_value,
+					'remaining_items' => 6 - $collected_items, //total remaining item to collect for particular collection
+				];
+				
+				\DB::commit();
+				$this->code = CC::RESPONSE_SUCCESS;
+				$this->results = ['payload' => $payload];
+				$this->message = "Successful grab the item.";
+			} catch (\Exception $e) {
+                \DB::rollBack();
+
+                $this->status = RS::HTTP_INTERNAL_SERVER_ERROR;
+                $this->message = 'Error server';
+            }
+		} else
+		{
+			$this->status = RS::HTTP_BAD_REQUEST;
+			$this->results = $validator->errors();
+			$this->message = 'Error Parameters';
+		}
+		return $this->json();
+	}
 
 }
