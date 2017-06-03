@@ -44,6 +44,7 @@ $app->group(['prefix' => 'v1', 'namespace' => 'V1'], function() use ($app) {
 	$app->group(['prefix' => 'item'], function() use ($app) 
 	{
 	    $app->get('list', 'ItemController@listItem');
+		$app->get('collected', 'ItemController@collectedItem');
 	});
     });
 
