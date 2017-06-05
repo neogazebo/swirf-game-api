@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use App\Helpers\CommonConstants as CC;
 use App\Helpers\ResponseHelper as RS;
+use App\Helpers\RedisHelper as Redis;
 
 class ItemController extends Controller {
 
@@ -87,37 +88,45 @@ class ItemController extends Controller {
 	    $collections = \DB::select($statement, [
 		'mem_id' => \Swirf::getMember()->mem_id,
 	    ]);
-		$collected=[];
-		foreach ($collections as $collection) {
-			$statement = '
-				select 
-				col_id as collected_item_id,
-				col_datetime as collected_item_date,
-				itm_name as item_name, 
-				itm_point_value as item_point_value,
-				itm_rarity as rarity,
-				itm_image as image
-				from tbl_collectible
-				left join tbl_item on col_item_id=itm_id
-				where col_member_id=:mem_id and col_collection_id=:clc_id
-			';
+		$collected='';
+		if (count($collections)<>0) {
+			$collected=[];
+			foreach ($collections as $collection) {
+				$statement = '
+					select 
+					col_id as collected_item_id,
+					col_datetime as collected_item_date,
+					itm_name as item_name, 
+					itm_point_value as item_point_value,
+					itm_rarity as rarity,
+					itm_image as image
+					from tbl_collectible
+					left join tbl_item on col_item_id=itm_id
+					where col_member_id=:mem_id and col_collection_id=:clc_id
+				';
+				
+				$items = \DB::select($statement, [
+				'mem_id' => \Swirf::getMember()->mem_id,
+				'clc_id' => $collection->collection_id,
+				]);
+				$collected=['collection'=>$collection, 'items'=>$items];
+			}
 			
-			$items = \DB::select($statement, [
-			'mem_id' => \Swirf::getMember()->mem_id,
-			'clc_id' => $collection->collection_id,
-			]);
-			$collected=['collection'=>$collection, 'items'=>$items];
-		}
-		
-		if (count($items)<>0) {
-			$this->code = CC::RESPONSE_SUCCESS;
-			$this->results = ['collected' => $collected];
-			$this->message = "Successful pulling the collected items.";	
+			if (count($items)<>0) {
+				$this->code = CC::RESPONSE_SUCCESS;
+				$this->results = ['collected' => $collected];
+				$this->message = "Successful pulling the collected items.";	
+			} else {
+				$this->code = CC::RESPONSE_SUCCESS;
+				$this->results = ['collected' => $collected];
+				$this->message = "No collected items, please try to grab an item first.";
+			}
 		} else {
 			$this->code = CC::RESPONSE_SUCCESS;
-			$this->results = ['collected' => $collected];
-			$this->message = "No collected items, please try to grab first.";
+				$this->results = ['collected' => $collected];
+				$this->message = "No collection, please try to grab an item first.";
 		}
+		
 		return $this->json();
     }
 	
@@ -139,17 +148,22 @@ class ItemController extends Controller {
 			try {
                 \DB::beginTransaction();
 				//0.get item point value and user's current point
-				$current_point = \DB::table('tbl_point_history')
+				$query = \DB::table('tbl_point_history')
 					->where([['poi_member_id', '=', $member]])
-					->max('poi_id')
-					->poi_current;
-				if (empty($current_point)) {
+					->max('poi_id');
+				if (empty($query)) {
 					$current_point = 0;
+				} else {
+					$current_point = $query->poi_current;
 				}
-				$point_value = \DB::table('tbl_item')
+				$query2 = \DB::table('tbl_item')
 					->where('itm_id', \Swirf::input()->item_id)
-					->first()
-					->itm_point_value;
+					->first();
+				if (empty($query2)) {
+					$point_value = 0;
+				} else {
+					$point_value = $query2->itm_point_value;
+				}
 					
 				//1.update geo_position, flag the record 
 				\DB::table('tbl_geo_position')->where('geo_id', \Swirf::input()->geo_id)->update(['geo_broadcast' => '0', 'geo_counter' => '1']);
