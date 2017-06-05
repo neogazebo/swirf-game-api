@@ -133,14 +133,14 @@ class ItemController extends Controller {
 	
 		if (!$validator->fails())
 		{
-			$member = \Swirf::getMember();
+			$member = \Swirf::getMember()->mem_id;
 			$time = time();
 			$payload=[];
 			try {
                 \DB::beginTransaction();
 				//0.get item point value and user's current point
 				$current_point = \DB::table('tbl_point_history')
-					->where([['poi_member_id', '=', $member->mem_id]])
+					->where([['poi_member_id', '=', $member]])
 					->max('poi_id')
 					->poi_current;
 				if (empty($current_point)) {
@@ -159,14 +159,14 @@ class ItemController extends Controller {
 				
 				//3.check collection is exist in tbl_collectible_collection for particular member,
 				$collected = \DB::table('tbl_collectible_collection')
-					->where([['coc_member_id', '=', $member->mem_id],['coc_collection_id', '=', \Swirf::input()->collection_id]])
+					->where([['coc_member_id', '=', $member],['coc_collection_id', '=', \Swirf::input()->collection_id]])
 					->first();
 				
 				//4.if not exist insert new collection
 				if (count($collected)==0) {
 					\DB::table('tbl_collectible_collection')->insert(
 						[
-							'coc_member_id' => $member->mem_id,
+							'coc_member_id' => $member,
 							'coc_collection_id' => \Swirf::input()->collection_id,
 							'coc_datetime' => $time,
 						]
@@ -177,7 +177,7 @@ class ItemController extends Controller {
 				//5.insert into tbl_collectible for particular item
 				\DB::table('tbl_collectible')->insert(
 					[
-						'col_member_id' => $member->mem_id,
+						'col_member_id' => $member,
 						'col_collection_id' => \Swirf::input()->collection_id,
 						'col_item_id' => \Swirf::input()->item_id,
 						'col_geoposition_id' => \Swirf::input()->geo_id,
@@ -192,18 +192,30 @@ class ItemController extends Controller {
 				//6.count items under particalr collection, if count == 6 then flag the collection as completed
 				// and insert the reward to the tbl_member_redeemable
 				$collected_items = \DB::table('tbl_collectible')
-					->where([['col_member_id', '=', $member->mem_id],['col_collection_id', '=', \Swirf::input()->collection_id]])
+					->where([['col_member_id', '=', $member],['col_collection_id', '=', \Swirf::input()->collection_id]])
 					->count();
 				if ($collected_items==6) {
 					\DB::table('tbl_collectible_collection')
-						->where(['coc_member_id', '=', $member->mem_id], ['coc_collection_id', '=', \Swirf::input()->collection_id])
+						->where(['coc_member_id', '=', $member], ['coc_collection_id', '=', \Swirf::input()->collection_id])
 						->update(['coc_flag' => '1', 'coc_update_datetime' => $time, 'coc_completed_datetime' => $time]);
+					//insert to member redeemable
+					$redeemable_id = \DB::table('tbl_collection')
+						->where('clc_id', \Swirf::input()->collection_id)
+						->first()
+						->clc_redeemable_id;
+					\DB::table('tbl_rel_member_redeemable')->insert(
+					[
+						'rmr_member_id' => $member,
+						'rmr_redeemable_id' => $redeemable_id,
+						'rmr_datetime' => $time,
+					]
+				);
 				}
 				
 				//7.add point earned into tbl_point_history
 					\DB::table('tbl_point_history')->insert(
 						[
-							'poi_member_id' => $member->mem_id,
+							'poi_member_id' => $member,
 							'poi_datetime' => $time,
 							'poi_point_type_id' => '103', //collected item
 							'poi_method' => 'C',
@@ -212,7 +224,7 @@ class ItemController extends Controller {
 						]
 					);
 				//8.clear redis for that user profile
-				Redis::deleteProfileCache($member->mem_id);
+				Redis::deleteProfileCache($member);
 				
 				//9.return completed_flag, remaining items to complete
 				$payload=[
@@ -229,7 +241,7 @@ class ItemController extends Controller {
                 \DB::rollBack();
 
                 $this->status = RS::HTTP_INTERNAL_SERVER_ERROR;
-                $this->message = 'Error server';
+                $this->message = 'Error server '.$e;
             }
 		} else
 		{
