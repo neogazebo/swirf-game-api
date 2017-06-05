@@ -26,7 +26,7 @@ $app->group(['prefix' => 'v1', 'namespace' => 'V1'], function() use ($app) {
 	    'uses' => 'AuthController@logout'
 	]);
     });
-    
+
     //Admin webhooks
     $app->group(['prefix' => 'webhook'], function() use ($app) {
 	$app->post('/profile', 'AdminWebhookController@profile');
@@ -39,13 +39,19 @@ $app->group(['prefix' => 'v1', 'namespace' => 'V1'], function() use ($app) {
 
     //all endpoint that need token
     $app->group(['middleware' => 'token'], function() use ($app) {
-	
+
 	//Item
-	$app->group(['prefix' => 'item'], function() use ($app) 
-	{
+	$app->group(['prefix' => 'item'], function() use ($app) {
 	    $app->get('list', 'ItemController@listItem');
-		$app->get('collected', 'ItemController@collectedItem');
-		$app->post('grab', 'ItemController@grabItem');
+	    $app->get('collected', 'ItemController@collectedItem');
+	    $app->post('grab', 'ItemController@grabItem');
+	});
+	
+	//Reward
+	$app->group(['prefix' => 'reward'], function() use ($app) {
+	    $app->get('list', 'RewardController@listAll');
+//	    $app->get('collected', 'ItemController@collectedItem');
+//	    $app->post('grab', 'ItemController@grabItem');
 	});
     });
 });
