@@ -186,13 +186,17 @@ class Swirf {
 	    $this->dataToken = TH::parse($this->token);
 	    if($this->dataToken->valid)
 	    {
-		$this->dataToken->data;
-		//TODO other checking related on the payload
-
 		$data = json_decode($this->dataToken->data);
-
-		$this->memberAccountID = $data->account_id;
-		$result->setCode(CC::RESPONSE_SUCCESS);
+		if($data->is_active == CC::MEMBER_STATUS_ACTIVE)
+		{
+		    $this->memberAccountID = $data->account_id;
+		    $result->setCode(CC::RESPONSE_SUCCESS);
+		}
+		else
+		{
+		    $result->status(RH::HTTP_INVALID_TOKEN);
+		    $result->setMessage('Account Master Not Active');
+		}
 	    }
 	    else
 	    {
@@ -206,10 +210,7 @@ class Swirf {
 	    $result->setMessage('Missing Token');
 	}
 	
-//	dump($result);exit;
-	
 	return $result;
-	
     }
     
     public function getMember(){

@@ -11,6 +11,13 @@ namespace App\Helpers;
 
 class CommonConstants
 {
+    //Member
+    const MEMBER_LOGIN_VIA_EMAIL = 1;
+    const MEMBER_LOGIN_VIA_GOOGLE = 2;
+    const MEMBER_STATUS_PENDING = 0;
+    const MEMBER_STATUS_ACTIVE = 1;
+    const MEMBER_STATUS_SUSPENDED = 2;
+    
     const RESPONSE_SUCCESS = 1;
     const RESPONSE_FAILED = 0;
     
@@ -25,5 +32,8 @@ class CommonConstants
 
     //REDIS CACHE
     const PREFIX_PROFILE = 'profile:';
-
+    
+    //API PAY endpoints
+    const APIPAY_SIGNIN = '/v1/auth/signin';
+    const APIPAY_SIGNIN_GOOGLE = '/v1/auth/signin/google';
 }
