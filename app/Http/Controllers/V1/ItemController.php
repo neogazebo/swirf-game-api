@@ -242,7 +242,30 @@ class ItemController extends Controller {
 				//8.clear redis for that user profile
 				Redis::deleteProfileCache($member);
 				
-				//9.return completed_flag, remaining items to complete
+				//9.insert into tbl_collectible_geoposition and delete from tbl_geo_position
+				$geo = \DB::table('tbl_geo_position')
+						->where('geo_id', \Swirf::input()->geo_id)
+						->first();
+				\DB::table('tbl_collectible_geoposition')->insert(
+					[
+						'cog_member_id' => $member,
+						'cog_datetime' => $time,
+						'cog_geo_id' => \Swirf::input()->geo_id,
+						'cog_geo_latitude' => $geo->geo_latitude,
+						'cog_geo_longitude' => $geo->geo_longitude,
+						'cog_geo_name' => $geo->geo_name,
+						'cog_geo_item_id' => $geo->geo_item_id,
+						'cog_geo_datetime' => $geo->geo_datetime,
+						'cog_geo_counter' => $geo->geo_counter,
+						'cog_geo_broadcast' => $geo->geo_broadcast,
+					]
+				);
+				
+				\DB::table('tbl_geo_position')
+						->where('geo_id', \Swirf::input()->geo_id)
+						->delete();
+				
+				//10.return completed_flag, remaining items to complete
 				$payload=[
 					'point_value' => $point_value,
 					'total_point' => $current_point + $point_value,
@@ -251,6 +274,8 @@ class ItemController extends Controller {
 					'item_id' => \Swirf::input()->item_id,
 					'redeemable_id' => $redeemable_id,
 				];
+				
+				//todo : create tbl_history_geoposition : contain all geaoposition before and after grabbed
 				
 				\DB::commit();
 				$this->code = CC::RESPONSE_SUCCESS;
