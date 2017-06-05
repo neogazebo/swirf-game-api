@@ -150,7 +150,8 @@ class ItemController extends Controller {
 				//0.get item point value and user's current point
 				$query = \DB::table('tbl_point_history')
 					->where([['poi_member_id', '=', $member]])
-					->max('poi_id');
+					->orderBy('poi_id', 'desc')
+					->first();
 				if (empty($query)) {
 					$current_point = 0;
 				} else {
@@ -205,12 +206,13 @@ class ItemController extends Controller {
 				
 				//6.count items under particalr collection, if count == 6 then flag the collection as completed
 				// and insert the reward to the tbl_member_redeemable
+				$redeemable_id = '';
 				$collected_items = \DB::table('tbl_collectible')
 					->where([['col_member_id', '=', $member],['col_collection_id', '=', \Swirf::input()->collection_id]])
 					->count();
 				if ($collected_items==6) {
 					\DB::table('tbl_collectible_collection')
-						->where(['coc_member_id', '=', $member], ['coc_collection_id', '=', \Swirf::input()->collection_id])
+						->where([['coc_member_id', '=', $member], ['coc_collection_id', '=', \Swirf::input()->collection_id]])
 						->update(['coc_flag' => '1', 'coc_update_datetime' => $time, 'coc_completed_datetime' => $time]);
 					//insert to member redeemable
 					$redeemable_id = \DB::table('tbl_collection')
@@ -245,6 +247,9 @@ class ItemController extends Controller {
 					'point_value' => $point_value,
 					'total_point' => $current_point + $point_value,
 					'remaining_items' => 6 - $collected_items, //total remaining item to collect for particular collection
+					'collection_id' => \Swirf::input()->collection_id,
+					'item_id' => \Swirf::input()->item_id,
+					'redeemable_id' => $redeemable_id,
 				];
 				
 				\DB::commit();
