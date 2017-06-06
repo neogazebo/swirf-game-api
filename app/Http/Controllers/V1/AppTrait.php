@@ -29,7 +29,7 @@ trait AppTrait
             if (is_array($this->results)) {
                 $this->results = valueArrayToValidType($this->results);
             }
-            $result['results'] = $this->results;
+            $result['data'] = $this->results;
         }
         $result['elapsed'] = TH::serverElapsedTime();
         if(\Swirf::isEncrypted())
