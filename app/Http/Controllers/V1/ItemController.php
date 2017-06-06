@@ -16,6 +16,7 @@ class ItemController extends Controller {
     public function listItem()
     {
 	//limit to 2KM nearby
+	$cdn = env('CDN_ITEM');
 	$statement = '
 			select 
 			geo_id,
@@ -24,7 +25,7 @@ class ItemController extends Controller {
 			itm_id as item_id,
 			itm_name as item_name, 
 			itm_point_value as item_point_value,
-			itm_image as image,
+			IF(itm_image <> "", CONCAT("'.$cdn.'",itm_image), "") as image
 			clc_id as collection_id,
 			clc_name as collection_name,
 			clc_description as collection_description,
@@ -50,8 +51,11 @@ class ItemController extends Controller {
 		    'lat2' => \Swirf::getLatitude(),
 		    'lon' => \Swirf::getLongitude()
 	]);
+	
+	
 	if (count($items) <> 0)
 	{
+	    
 	    $this->code = CC::RESPONSE_SUCCESS;
 	    $this->results = ['count' => count($items), 'items' => $items];
 	    $this->message = "Successful pulling the item list";
@@ -78,7 +82,6 @@ class ItemController extends Controller {
 	else
 	{
 	    $this->code = CC::RESPONSE_SUCCESS;
-	    $this->results = $collections;
 	    $this->message = "No collection, please try to grab an item first.";
 	}
 
@@ -262,6 +265,7 @@ class ItemController extends Controller {
     private function __getCollectedItems($member_id)
     {
 	//TODO get from Redis
+	$cdn = env('CDN_ITEM');
 	$statement = '
 		select 
 		coc_id as collected_id,
@@ -297,7 +301,7 @@ class ItemController extends Controller {
 			itm_name as item_name, 
 			itm_point_value as item_point_value,
 			itm_rarity as rarity,
-			itm_image as image
+			IF(itm_image <> "", CONCAT("'.$cdn.'",itm_image), "") as image
 			from tbl_collectible
 			left join tbl_item on col_item_id=itm_id
 			where col_member_id=:mem_id and col_collection_id=:clc_id
