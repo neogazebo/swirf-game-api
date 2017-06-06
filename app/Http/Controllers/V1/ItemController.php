@@ -25,7 +25,7 @@ class ItemController extends Controller {
 			itm_id as item_id,
 			itm_name as item_name, 
 			itm_point_value as item_point_value,
-			IF(itm_image <> "", CONCAT("'.$cdn.'",itm_image), "") as image
+			IF(itm_image <> "", CONCAT("'.$cdn.'",itm_image), "") as image,
 			clc_id as collection_id,
 			clc_name as collection_name,
 			clc_description as collection_description,
