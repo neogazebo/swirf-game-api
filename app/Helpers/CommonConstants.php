@@ -32,6 +32,7 @@ class CommonConstants
 
     //REDIS CACHE
     const PREFIX_PROFILE = 'profile:';
+    const PREFIX_COLECTED_ITEMS = 'item:collected:' ;
     
     //API PAY endpoints
     const APIPAY_SIGNIN = '/v1/auth/signin';

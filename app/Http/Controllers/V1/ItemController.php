@@ -243,6 +243,9 @@ class ItemController extends Controller {
 		//todo : create tbl_history_geoposition : contain all geaoposition before and after grabbed
 
 		\DB::commit();
+		
+		Redis::deleteCollectedItems($member);
+		
 		$this->code = CC::RESPONSE_SUCCESS;
 		$this->results = ['payload' => $payload];
 		$this->message = "Successful grab the item.";
@@ -264,7 +267,14 @@ class ItemController extends Controller {
 
     private function __getCollectedItems($member_id)
     {
-	//TODO get from Redis
+	
+	$collections = Redis::getCollectedItems($member_id);
+	
+	if(!empty($collections))
+	{
+	    return json_decode($collections);
+	}
+	
 	$cdn = env('CDN_ITEM');
 	$statement = '
 		select 
@@ -314,6 +324,8 @@ class ItemController extends Controller {
 		$collection->items = $items;
 	    }
 	}
+	
+	Redis::setCollectedItems($member_id, json_encode($collections));
 
 	return $collections;
     }
