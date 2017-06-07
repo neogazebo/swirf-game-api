@@ -51,5 +51,10 @@ $app->group(['prefix' => 'v1', 'namespace' => 'V1'], function() use ($app) {
 	$app->group(['prefix' => 'reward'], function() use ($app) {
 	    $app->get('list', 'RewardController@listAll');
 	});
+	
+	//Reward
+	$app->group(['prefix' => 'member'], function() use ($app) {
+	    $app->get('profile', 'MemberController@profile');
+	});
     });
 });

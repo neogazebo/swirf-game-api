@@ -7,21 +7,21 @@ use Illuminate\Support\Facades\Redis;
 class RedisHelper
 {
     /**
-     * @param $id member id
+     * @param $account_id mem_acc_id
      * @param $data member data Json
      */
-    public static function setProfileCache($id, $data)
+    public static function setProfileCache($account_id, $data)
     {
-        Redis::set(CC::PREFIX_PROFILE . $id, $data);
+        Redis::set(CC::PREFIX_PROFILE . $account_id, $data);
     }
     
-    public static function getProfileCache($id){
-	return Redis::get(CC::PREFIX_PROFILE . $id);
+    public static function getProfileCache($account_id){
+	return Redis::get(CC::PREFIX_PROFILE . $account_id);
     }
     
-    public static function deleteProfileCache($id)
+    public static function deleteProfileCache($account_id)
     {
-	Redis::command('DEL', [CC::PREFIX_PROFILE . $id]);
+	Redis::command('DEL', [CC::PREFIX_PROFILE . $account_id]);
     }
     
     public static function setCollectedItems($id, $data)

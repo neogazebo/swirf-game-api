@@ -9,6 +9,7 @@ use Illuminate\Validation\Rule;
 use App\Helpers\CommonConstants as CC;
 use App\Helpers\ResponseHelper as RS;
 use App\Helpers\SwirfPayHelper as SP;
+use App\Helpers\RedisHelper as Redis;
 
 class AuthController extends Controller {
 
@@ -285,11 +286,19 @@ class AuthController extends Controller {
     private function __getMemberbyAccountId($account_id)
     {
 	$result = null;
+	
+	$member = Redis::getProfileCache($acount_id);
+	if(!empty($member))
+	{
+	    return json_decode($member);
+	}
+
 	$statement = 'Select * from tbl_member where mem_acc_id = :account_id limit 0,1';
 	$member = \DB::select($statement, ['account_id' => $account_id]);
 	if (count($member) > 0)
 	{
 	    $result = $member[0];
+	    Redis::setProfileCache($acount_id, json_encode($result));
 	}
 
 	return $result;

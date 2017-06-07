@@ -6,6 +6,7 @@ use App\Helpers\CommonConstants as CC;
 use App\Helpers\TokenHelper as TH;
 use App\Helpers\ReturnDataHelper as RDH;
 use App\Helpers\ResponseHelper as RH;
+use App\Helpers\RedisHelper as Redis;
 
 class Swirf {
 
@@ -50,14 +51,16 @@ class Swirf {
 	    if ($key == null)
 	    {
 		return is_array($this->input) ? (($array) ? $this->input : array2object($this->input)) : $this->input;
-	    } else
+	    }
+	    else
 	    {
 		if (isset($this->input[$key]))
 		{
 		    return is_array($this->input[$key]) ? (($array) ? $this->input[$key] : array2object($this->input[$key])) : $this->input[$key];
 		}
 	    }
-	} else
+	}
+	else
 	{
 	    if ($key == null)
 	    {
@@ -80,7 +83,8 @@ class Swirf {
 	    {
 		$this->input = valueArrayToValidType($json);
 	    }
-	} else
+	}
+	else
 	{
 	    $decrypted = base64_decode($data);
 	    $clean = prepare_json_decode($decrypted);
@@ -131,7 +135,7 @@ class Swirf {
     {
 	return $this->latitude;
     }
-    
+
     public function getLongitude()
     {
 	return $this->longitude;
@@ -173,21 +177,21 @@ class Swirf {
 	{
 	    $this->token = $headers['token'][0];
 	}
-	
+
 	$this->headers = $headers;
     }
-    
+
     public function validToken()
     {
 	$result = new RDH();
-	
-	if(!empty($this->token))
+
+	if (!empty($this->token))
 	{
 	    $this->dataToken = TH::parse($this->token);
-	    if($this->dataToken->valid)
+	    if ($this->dataToken->valid)
 	    {
 		$data = json_decode($this->dataToken->data);
-		if($data->is_active == CC::MEMBER_STATUS_ACTIVE)
+		if ($data->is_active == CC::MEMBER_STATUS_ACTIVE)
 		{
 		    $this->memberAccountID = $data->account_id;
 		    $result->setCode(CC::RESPONSE_SUCCESS);
@@ -209,20 +213,33 @@ class Swirf {
 	    $result->status(RH::HTTP_INVALID_TOKEN);
 	    $result->setMessage('Missing Token');
 	}
-	
+
 	return $result;
     }
-    
-    public function getMember(){
-	
-	$statement = 'select * from tbl_member where mem_acc_id = :acc_id limit 0,1';
-	
-	$member = \DB::select($statement, ['acc_id' => $this->memberAccountID]);
-	if(count($member) > 0){
-	    return $member[0];
+
+    public function getMember()
+    {
+	$member = Redis::getProfileCache($this->memberAccountID);
+	if(!empty($member))
+	{
+	    return json_decode($member);
 	}
 	
+	$statement = 'select * from tbl_member where mem_acc_id = :acc_id limit 0,1';
+
+	$member = \DB::select($statement, ['acc_id' => $this->memberAccountID]);
+	if (count($member) > 0)
+	{
+	    Redis::setProfileCache($this->memberAccountID, json_encode($member[0]));
+	    return $member[0];
+	}
+
 	return null;
+    }
+
+    public function getMemberAccountID()
+    {
+	return $this->memberAccountID;
     }
 
 }
