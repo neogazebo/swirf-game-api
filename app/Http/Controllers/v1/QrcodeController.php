@@ -44,10 +44,39 @@ class QrcodeController extends Controller {
 		{
 			$member_id = \Swirf::getMember()->mem_id;
 			$qrcode = explode('/',$this->__encryptdecrypt(\Swirf::input()->qrcode, true));
-
+			/* QR Mode
+			1	Play AR	triggers an augmented reality animation
+			2	Win Carousel	triggers the prize caroussel
+			3	Gain Points	add points
+			4	Get Item	to redeem 
+			5	Trigger Mission	starts a mission
+			6	Get Redeemable	NULL
+			7	Show Informatoin	NULL
+			*/
 			switch ($qrcode[1]) {
-				case '5' : 
+				case '1' : //QR Poster
 					$result = $qrcode[3];
+					break;
+				case '2' : //QR Product
+					$result = $qrcode[3];
+					break;
+				case '3' : //QR Outlet
+					$result = $qrcode[3];
+					break;
+				case '4' : //QR Redeem type 1
+					$result = $qrcode[3];
+					break;
+				case '5' : //QR Profile
+					$result = $qrcode[3];
+					break;
+				case '6' : //QR Buy
+					$result = $qrcode[3];
+					break;
+				case '7' : //QR Event
+					$result = $qrcode[3];
+					break;
+				default : 
+					$result = "Can't find QRCode in the database";
 					break;
 			}
 
