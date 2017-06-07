@@ -51,5 +51,12 @@ $app->group(['prefix' => 'v1', 'namespace' => 'V1'], function() use ($app) {
 	$app->group(['prefix' => 'reward'], function() use ($app) {
 	    $app->get('list', 'RewardController@listAll');
 	});
+
+    //QRCode
+	$app->group(['prefix' => 'qrcode'], function() use ($app) {
+	    $app->post('generate', 'QrcodeController@generate');
+        $app->post('scan', 'QrcodeController@scan');
+	});
+
     });
 });
