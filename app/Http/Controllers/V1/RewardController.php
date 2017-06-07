@@ -34,7 +34,13 @@ class RewardController extends Controller {
     
     private function __getReward($member_id)
     {
-	//TODO : get reward from from redis
+	$reward = Redis::getRewardMember($member_id);
+	
+	if(!empty($reward))
+	{
+	    return json_decode($reward);
+	}
+	
 	$statement = 'select '
 		. ' red_id as reward_id,'
 		. ' rmr_id as reward_redeemable_id,'
@@ -47,6 +53,8 @@ class RewardController extends Controller {
 		. ' where mem_id = :member_id';
 	
 	$reward = \DB::select($statement, ['member_id' => $member_id]);
+	
+	Redis::setRewardMember($member_id, json_encode($reward));
 	
 	return $reward;
     }

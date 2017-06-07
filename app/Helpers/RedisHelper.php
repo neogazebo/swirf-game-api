@@ -38,4 +38,19 @@ class RedisHelper
     {
 	Redis::command('DEL', [CC::PREFIX_COLECTED_ITEMS . $id]);
     }
+    
+    public static function setRewardMember($id, $data)
+    {
+	Redis::set(CC::PREFIX_REWARD_MEMBER . $id, $data);
+    }
+    
+    public static function getRewardMember($id)
+    {
+	return Redis::get(CC::PREFIX_REWARD_MEMBER . $id);
+    }
+    
+    public static function deleteRewardMember($id)
+    {
+	Redis::command('DEL', [CC::PREFIX_REWARD_MEMBER . $id]);
+    }
 }
