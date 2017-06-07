@@ -204,10 +204,9 @@ class ItemController extends Controller {
 			    'poi_current' => $current_point + $point_value,
 			]
 		);
-		//8.clear redis for that user profile
-		Redis::deleteProfileCache($member);
+		
 
-		//9.insert into tbl_collectible_geoposition and delete from tbl_geo_position
+		//8.insert into tbl_collectible_geoposition and delete from tbl_geo_position
 		$geo = \DB::table('tbl_geo_position')
 			->where('geo_id', \Swirf::input()->geo_id)
 			->first();
@@ -230,7 +229,7 @@ class ItemController extends Controller {
 			->where('geo_id', \Swirf::input()->geo_id)
 			->delete();
 
-		//10.return completed_flag, remaining items to complete
+		//9.return completed_flag, remaining items to complete
 		$payload = [
 		    'point_value' => $point_value,
 		    'total_point' => $current_point + $point_value,
@@ -245,6 +244,8 @@ class ItemController extends Controller {
 		\DB::commit();
 		
 		Redis::deleteCollectedItems($member);
+		Redis::deleteRewardMember($member);
+		Redis::deleteProfileCache($member);
 		
 		$this->code = CC::RESPONSE_SUCCESS;
 		$this->results = ['payload' => $payload];
