@@ -254,7 +254,7 @@ class ItemController extends Controller {
 		\DB::rollBack();
 
 		$this->status = RS::HTTP_INTERNAL_SERVER_ERROR;
-		$this->message = 'Error server ' . $e;
+		$this->message = 'Error server ';
 	    }
 	}
 	else
