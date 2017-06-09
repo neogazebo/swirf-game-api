@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use App\Helpers\CommonConstants as CC;
 use App\Helpers\ResponseHelper as RS;
+use App\Helpers\RedisHelper as Redis;
 
 class QrcodeController extends Controller {
 
@@ -83,8 +84,17 @@ class QrcodeController extends Controller {
 				\DB::beginTransaction();
 				switch ($qrcode[1]) {
 					case '1' : //QR Poster
-						
-						$result = $qrcode[3];
+						//grab item, check the item that player dont have
+						$statement = 'SELECT geo_id, itm_id, itm_collection_id from tbl_geo_position '
+							.'INNER JOIN tbl_item on geo_item_id=itm_id '
+							.'WHERE (unix_timestamp() between itm_start_datetime and itm_end_datetime) and geo_broadcast = 1 and itm_partner_id=:partner_id and '
+							.'itm_id not in (select col_item_id from tbl_collected_item where col_member_id=:mem_id) ORDER BY RAND() LIMIT 1';
+						$collected_items = \DB::select($statement, [
+						'mem_id' => $member_id,
+						'partner_id' => $qrcode[3],
+						]);
+						$result = $this->__grabItem($collected_items[0]->geo_id, $collected_items[0]->itm_id, $collected_items[0]->itm_collection_id, $qrcode[3], '3', \Swirf::getMember()->mem_id, \Swirf::getLatitude(), \Swirf::getLongitude());
+						//$result = $qrcode[3];
 						break;
 					case '2' : //QR Product
 						$result = $qrcode[3];
@@ -169,5 +179,159 @@ class QrcodeController extends Controller {
 		}
 
 		return $output;
+	}
+
+	private function __grabItem($geo_id, $item_id, $collection_id, $partner_id, $element_id, $member, $latitude, $longitude){
+	    $time = time();
+	    $payload = [];
+	    try {
+		\DB::beginTransaction();
+		//0.get item point value and user's current point
+		$query = \DB::table('tbl_point_history')
+			->where([['poi_member_id', '=', $member]])
+			->orderBy('poi_id', 'desc')
+			->first();
+		if (empty($query))
+		{
+		    $current_point = 0;
+		}
+		else
+		{
+		    $current_point = $query->poi_current;
+		}
+		$query2 = \DB::table('tbl_item')
+			->where('itm_id', $item_id)
+			->first();
+		if (empty($query2))
+		{
+		    $point_value = 0;
+		}
+		else
+		{
+		    $point_value = $query2->itm_point_value;
+		}
+
+		//1.update geo_position, flag the record 
+		\DB::table('tbl_geo_position')->where('geo_id', $geo_id)->update(['geo_broadcast' => '0', 'geo_counter' => '1']);
+
+		//2.update tbl_item add increment on itm_counter for particular item
+		\DB::table('tbl_item')->where('itm_id', $item_id)->increment('itm_counter', 1);
+
+		//3.check collection is exist in tbl_collected_collection for particular member,
+		$collected = \DB::table('tbl_collected_collection')
+			->where([['coc_member_id', '=', $member], ['coc_collection_id', '=', $collection_id]])
+			->first();
+
+		//4.if not exist insert new collection
+		if (count($collected) == 0)
+		{
+		    \DB::table('tbl_collected_collection')->insert(
+			    [
+				'coc_member_id' => $member,
+				'coc_collection_id' => $collection_id,
+				'coc_datetime' => $time,
+			    ]
+		    );
+		}
+
+		//5.insert into tbl_collected_item for particular item
+		\DB::table('tbl_collected_item')->insert(
+			[
+			    'col_member_id' => $member,
+			    'col_collection_id' => $collection_id,
+			    'col_item_id' => $item_id,
+			    'col_geoposition_id' => $geo_id,
+			    'col_element_id' => $element_id,
+			    'col_partner_id' => $partner_id,
+			    'col_datetime' => $time,
+			    'col_latitude' => $latitude,
+			    'col_longitude' => $longitude,
+			]
+		);
+
+		//6.count items under particalr collection, if count == 6 then flag the collection as completed
+		// and insert the reward to the tbl_member_redeemable
+		$redeemable_id = '';
+		$collected_items = \DB::table('tbl_collected_item')
+			->where([['col_member_id', '=', $member], ['col_collection_id', '=', $collection_id]])
+			->count();
+		if ($collected_items == 6)
+		{
+		    \DB::table('tbl_collected_collection')
+			    ->where([['coc_member_id', '=', $member], ['coc_collection_id', '=', $collection_id]])
+			    ->update(['coc_flag' => '1', 'coc_update_datetime' => $time, 'coc_completed_datetime' => $time]);
+		    //insert to member redeemable
+		    $redeemable_id = \DB::table('tbl_collection')
+				    ->where('clc_id', $collection_id)
+				    ->first()
+			    ->clc_redeemable_id;
+		    \DB::table('tbl_rel_member_redeemable')->insert(
+			    [
+				'rmr_member_id' => $member,
+				'rmr_redeemable_id' => $redeemable_id,
+				'rmr_datetime' => $time,
+			    ]
+		    );
+		}
+
+		//7.add point earned into tbl_point_history
+		\DB::table('tbl_point_history')->insert(
+			[
+			    'poi_member_id' => $member,
+			    'poi_datetime' => $time,
+			    'poi_point_type_id' => '103', //collected item
+			    'poi_method' => 'C',
+			    'poi_value' => $point_value,
+			    'poi_current' => $current_point + $point_value,
+			]
+		);
+		
+
+		//8.insert into tbl_collected_geoposition and delete from tbl_geo_position
+		$geo = \DB::table('tbl_geo_position')
+			->where('geo_id', $geo_id)
+			->first();
+		\DB::table('tbl_collected_geoposition')->insert(
+			[
+			    'cog_member_id' => $member,
+			    'cog_datetime' => $time,
+			    'cog_geo_id' => $geo_id,
+			    'cog_geo_latitude' => $geo->geo_latitude,
+			    'cog_geo_longitude' => $geo->geo_longitude,
+			    'cog_geo_name' => $geo->geo_name,
+			    'cog_geo_item_id' => $geo->geo_item_id,
+			    'cog_geo_datetime' => $geo->geo_datetime,
+			    'cog_geo_counter' => $geo->geo_counter,
+			    'cog_geo_broadcast' => $geo->geo_broadcast,
+			]
+		);
+
+		\DB::table('tbl_geo_position')
+			->where('geo_id', $geo_id)
+			->delete();
+
+		//9.return completed_flag, remaining items to complete
+		$payload = [
+		    'point_value' => $point_value,
+		    'total_point' => $current_point + $point_value,
+		    'remaining_items' => 6 - $collected_items, //total remaining item to collect for particular collection
+		    'collection_id' => $collection_id,
+		    'item_id' => $item_id,
+		    'redeemable_id' => $redeemable_id,
+		];
+
+		//todo : create tbl_history_geoposition : contain all geaoposition before and after grabbed
+
+		\DB::commit();
+		
+		Redis::deleteCollectedItems($member);
+		Redis::deleteRewardMember($member);
+		Redis::deleteProfileCache($member);
+		
+	    } catch (\Exception $e) {
+		\DB::rollBack();
+		$payload=[];
+	    }
+		return $payload;
 	}
 }
