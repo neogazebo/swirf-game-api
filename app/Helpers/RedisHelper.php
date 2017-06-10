@@ -53,4 +53,19 @@ class RedisHelper
     {
 	Redis::command('DEL', [CC::PREFIX_REWARD_MEMBER . $id]);
     }
+    
+    public static function setNetworkMember($id, $data)
+    {
+	Redis::set(CC::PREFIX_NETWORK_MEMBER . $id, $data);
+    }
+    
+    public static function getNetworkMember($id)
+    {
+	return Redis::get(CC::PREFIX_NETWORK_MEMBER . $id);
+    }
+    
+    public static function deleteNetworkMember($id)
+    {
+	Redis::command('DEL', [CC::PREFIX_NETWORK_MEMBER . $id]);
+    }
 }

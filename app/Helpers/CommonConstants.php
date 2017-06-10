@@ -34,6 +34,7 @@ class CommonConstants
     const PREFIX_PROFILE = 'profile:';
     const PREFIX_COLECTED_ITEMS = 'item:collected:' ;
     const PREFIX_REWARD_MEMBER = 'reward:' ;
+    const PREFIX_NETWORK_MEMBER = 'network:' ;
     
     //API PAY endpoints
     const APIPAY_SIGNIN = '/v1/auth/signin';
