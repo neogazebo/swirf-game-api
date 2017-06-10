@@ -46,25 +46,24 @@ $app->group(['prefix' => 'v1', 'namespace' => 'V1'], function() use ($app) {
 	    $app->get('collected', 'ItemController@collectedItem');
 	    $app->post('grab', 'ItemController@grabItem');
 	});
-	
+
 	//Reward
 	$app->group(['prefix' => 'reward'], function() use ($app) {
 	    $app->get('list', 'RewardController@listAll');
 	});
 
-	
-	//Reward
+
+	//Member
 	$app->group(['prefix' => 'member'], function() use ($app) {
 	    $app->get('profile', 'MemberController@profile');
+	    $app->post('network', 'MemberController@network');
 	});
 
 
-    //QRCode
+	//QRCode
 	$app->group(['prefix' => 'qrcode'], function() use ($app) {
 	    $app->post('generate', 'QrcodeController@generate');
-        $app->post('scan', 'QrcodeController@scan');
+	    $app->post('scan', 'QrcodeController@scan');
 	});
-
-
     });
 });

@@ -287,7 +287,7 @@ class AuthController extends Controller {
     {
 	$result = null;
 	
-	$member = Redis::getProfileCache($acount_id);
+	$member = Redis::getProfileCache($account_id);
 	if(!empty($member))
 	{
 	    return json_decode($member);
@@ -298,7 +298,7 @@ class AuthController extends Controller {
 	if (count($member) > 0)
 	{
 	    $result = $member[0];
-	    Redis::setProfileCache($acount_id, json_encode($result));
+	    Redis::setProfileCache($account_id, json_encode($result));
 	}
 
 	return $result;

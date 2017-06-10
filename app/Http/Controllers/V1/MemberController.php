@@ -12,12 +12,12 @@ use App\Helpers\RedisHelper as Redis;
 class MemberController extends Controller {
 
     use AppTrait;
-    
+
     public function profile()
     {
 	$member = \Swirf::getMember();
-	
-	if(empty($member))
+
+	if (empty($member))
 	{
 	    $this->status = RS::HTTP_BAD_REQUEST;
 	    $this->message = 'data not available';
@@ -25,21 +25,20 @@ class MemberController extends Controller {
 	else
 	{
 	    $this->code = CC::RESPONSE_SUCCESS;
-	    
+
 	    $data = [];
-	    
-	    foreach ($member as $key => $val)
+
+	    unset($member->mem_acc_id);
+	    foreach ($member as $key => $val) 
 	    {
-		if($key != 'mem_acc_id')
-		{
-		    $k = 'member_'.substr($key, 4);
-		    $data[$k] = $val;
-		}
+		$k = 'member_' . substr($key, 4);
+		$data[$k] = $val;
 	    }
-	    
+
 	    $this->results = $data;
 	}
-	
+
 	return $this->json();
     }
+
 }
