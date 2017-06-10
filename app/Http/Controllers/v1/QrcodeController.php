@@ -64,7 +64,7 @@ class QrcodeController extends Controller {
 			]);
 			
 			//limit the scan process only once in a day except scaning the QR Profile (qr_type=5)
-			if (count($scan)<>0 && $qrcode[1]<>5) {
+			if (count($scan)<>0 && $qrcode[1]<>5 && $qrcode[1]<>3) {
 				//$this->results = $scan;
 				$this->message = 'You are reaching the limit to scan the same QRcode!';
 				$this->code = CC::RESPONSE_SUCCESS;
@@ -96,15 +96,34 @@ class QrcodeController extends Controller {
 						$result = $this->__grabItem($collected_items[0]->geo_id, $collected_items[0]->itm_id, $collected_items[0]->itm_collection_id, $qrcode[3], '3', $member_id, \Swirf::getLatitude(), \Swirf::getLongitude());
 						//$result = $qrcode[3];
 						break;
+
 					case '2' : //QR Product
 						$result = $qrcode[3];
 						break;
+
 					case '3' : //QR Outlet
-						$result = $qrcode[3];
+						$outlet_id = $qrcode[3];
+						$outlet = \DB::table('tbl_outlet')
+							->join('tbl_partner', 'tbl_outlet.out_partner_id', '=', 'tbl_partner.par_id')
+							->join('tbl_country', 'tbl_outlet.out_country_id', '=', 'tbl_country.cny_id')
+							->join('tbl_province', 'tbl_outlet.out_province_id', '=', 'tbl_province.prv_id')
+							->join('tbl_city', 'tbl_outlet.out_city_id', '=', 'tbl_city.cty_id')
+							->where([['tbl_outlet.out_id','=', $outlet_id]])
+							->select('out_id as outlet_id', 'out_name as outlet_name', 'par_id as partner_id', 'par_name as partner_name', 
+							'out_latitude as latitude', 'out_longitude as longitude', 'out_address as address', 'cty_name as city', 
+							'prv_name as province', 'cny_name as country', 'out_postalcode as postal_code', 'out_phone as phone' )
+							->first();
+						if (count($outlet)<>0) {
+							$result = $outlet;
+						} else {
+							$result = ['message' => 'Outlet not found!'];
+						}
 						break;
+
 					case '4' : //QR Redeem type 1
 						$result = $qrcode[3];
 						break;
+
 					case '5' : //QR Profile
 						//check account id and device id
 						$network_id = \DB::table('tbl_member')
@@ -125,17 +144,19 @@ class QrcodeController extends Controller {
 								$result = ['message' => 'Device id or member not found'];
 							}
 						} else {
-							$result = ['message' => 'Player already in the adress book!'];
+							$result = ['message' => 'Player already in the address book!'];
 						}
-						
 						//$result = $qrcode[3];
 						break;
+
 					case '6' : //QR Buy
 						$result = $qrcode[3];
 						break;
+
 					case '7' : //QR Event
 						$result = $qrcode[3];
 						break;
+						
 					default : 
 						$result = "Can't find QRCode in the database";
 						break;
