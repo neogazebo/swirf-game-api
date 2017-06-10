@@ -64,7 +64,7 @@ class QrcodeController extends Controller {
 			]);
 			
 			//limit the scan process only once in a day except scaning the QR Profile (qr_type=5)
-			if (count($scan)<>0) {
+			if (count($scan)<>0 && $qrcode[1]<>5) {
 				//$this->results = $scan;
 				$this->message = 'You are reaching the limit to scan the same QRcode!';
 				$this->code = CC::RESPONSE_SUCCESS;
@@ -93,7 +93,7 @@ class QrcodeController extends Controller {
 						'mem_id' => $member_id,
 						'partner_id' => $qrcode[3],
 						]);
-						$result = $this->__grabItem($collected_items[0]->geo_id, $collected_items[0]->itm_id, $collected_items[0]->itm_collection_id, $qrcode[3], '3', \Swirf::getMember()->mem_id, \Swirf::getLatitude(), \Swirf::getLongitude());
+						$result = $this->__grabItem($collected_items[0]->geo_id, $collected_items[0]->itm_id, $collected_items[0]->itm_collection_id, $qrcode[3], '3', $member_id, \Swirf::getLatitude(), \Swirf::getLongitude());
 						//$result = $qrcode[3];
 						break;
 					case '2' : //QR Product
@@ -107,7 +107,28 @@ class QrcodeController extends Controller {
 						break;
 					case '5' : //QR Profile
 						//check account id and device id
-						$result = $qrcode[3];
+						$network_id = \DB::table('tbl_member')
+							->where([['mem_acc_id','=', $qrcode[3]]])
+							->first();
+						$device_id = \DB::table('tbl_device')
+							->where([['dev_mem_id','=', $network_id->mem_id], ['dev_device_id','=',$qrcode[0]]])
+							->first();
+						$channel = 1; //channel for scan qrcode
+						//check if already in the network
+						$check_network = \DB::table('tbl_network')
+							->where([['net_member_id','=', $member_id],['net_network_id','=',$network_id->mem_id]])
+							->first();
+						if (count($check_network)==0) {
+							if (count($network_id)<>0 && count($device_id)<>0){
+								$result = $this ->__addNetwork($member_id, $network_id->mem_id, $channel, \Swirf::getLatitude(), \Swirf::getLongitude());
+							} else {
+								$result = ['message' => 'Device id or member not found'];
+							}
+						} else {
+							$result = ['message' => 'Player already in the adress book!'];
+						}
+						
+						//$result = $qrcode[3];
 						break;
 					case '6' : //QR Buy
 						$result = $qrcode[3];
@@ -144,7 +165,7 @@ class QrcodeController extends Controller {
 				\DB::rollBack();
 
 				$this->status = RS::HTTP_INTERNAL_SERVER_ERROR;
-				$this->message = 'Error server ' . $e;
+				$this->message = 'Error server '.$e;
 			}
 		} else {
 			$this->status = RS::HTTP_BAD_REQUEST;
@@ -329,6 +350,52 @@ class QrcodeController extends Controller {
 		Redis::deleteProfileCache($member);
 		
 	    } catch (\Exception $e) {
+		\DB::rollBack();
+		$payload=[];
+	    }
+		return $payload;
+	}
+
+	private function __addNetwork($member_id, $network_id, $channel, $latitude, $longitude){
+		try {
+		\DB::beginTransaction();
+		//add contact to invitee
+		\DB::table('tbl_network')->insert(
+			[
+			    'net_member_id' => $member_id,
+			    'net_network_id' => $network_id,
+			    'net_channel' => $channel,
+			    'net_datetime' => \DB::raw('unix_timestamp()'),
+			    'net_latitude' => $latitude,
+				'net_longitude' => $longitude
+			]
+		);
+
+		//add contact to invited
+		\DB::table('tbl_network')->insert(
+			[
+			    'net_member_id' => $network_id,
+			    'net_network_id' => $member_id,
+			    'net_channel' => $channel,
+			    'net_datetime' => \DB::raw('unix_timestamp()'),
+			    'net_latitude' => $latitude,
+				'net_longitude' => $longitude
+			]
+		);
+
+		$payload = [
+			'member_id' => $member_id,
+			'network_id' => $network_id,
+			'channel' => $channel,
+		];
+
+		\DB::commit();
+
+		//todo: Delete cache for network both side
+		//Redis::deleteNetworkCache($member_id);
+		//Redis::deleteNetworkCache($network_id);
+
+		} catch (\Exception $e) {
 		\DB::rollBack();
 		$payload=[];
 	    }
