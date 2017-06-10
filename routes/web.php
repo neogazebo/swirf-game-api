@@ -56,7 +56,7 @@ $app->group(['prefix' => 'v1', 'namespace' => 'V1'], function() use ($app) {
 	//Member
 	$app->group(['prefix' => 'member'], function() use ($app) {
 	    $app->get('profile', 'MemberController@profile');
-	    $app->post('network', 'MemberController@network');
+	    $app->get('network', 'MemberController@network');
 	});
 
 

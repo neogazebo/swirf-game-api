@@ -27,7 +27,8 @@ class MemberController extends Controller {
 	    $this->code = CC::RESPONSE_SUCCESS;
 
 	    $data = [];
-
+	    
+	    $member->mem_account_id = $member->mem_acc_id;
 	    unset($member->mem_acc_id);
 	    foreach ($member as $key => $val) 
 	    {
@@ -40,5 +41,33 @@ class MemberController extends Controller {
 
 	return $this->json();
     }
-
+    
+    public function network()
+    {
+	$member = \Swirf::getMember();
+	
+	$network = $this->__getNetwork($member->mem_id);
+	
+	$this->code = CC::RESPONSE_SUCCESS;
+	$this->results = $network;
+	
+	return $this->json();
+    }
+    
+    private function __getNetwork($member_id)
+    {
+	$statement = 'select '
+		. ' mem_id as network_id,'
+		. ' mem_name as network_name'
+		. ' from tbl_network'
+		. ' left join tbl_member on mem_id = net_network_id'
+		. ' where net_member_id = :member_id'
+		. ' and net_status = 1';
+	
+	$network = \DB::select($statement,['member_id' => $member_id]);
+	
+	return $network;
+		
+    }
+    
 }
