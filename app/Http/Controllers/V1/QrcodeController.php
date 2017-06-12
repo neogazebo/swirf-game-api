@@ -16,7 +16,7 @@ class QrcodeController extends Controller {
     public function generate()
     {
 	$validator = Validator::make(\Swirf::input(null, true), [
-		    'qrcode' => 'required',
+	    'qrcode' => 'required',
 	]);
 
 	if (!$validator->fails())
@@ -48,6 +48,7 @@ class QrcodeController extends Controller {
 	{
 	    $member_id = \Swirf::getMember()->mem_id;
 	    $qrcode = explode('/', $this->__encryptdecrypt(\Swirf::input()->qrcode, true));
+//	    dump($qrcode);exit;
 	    $qr_id = 0;
 	    if ($qrcode[1] <> 5)
 	    {
@@ -144,42 +145,51 @@ class QrcodeController extends Controller {
 
 		    case '5' : //QR Profile
 			//check account id and device id
+			$device_id = [];
 			$network_id = \DB::table('tbl_member')
 				->where([['mem_acc_id', '=', $qrcode[3]]])
 				->first();
-			$device_id = \DB::table('tbl_device')
-				->where([['dev_mem_id', '=', $network_id->mem_id], ['dev_device_id', '=', $qrcode[0]]])
-				->first();
-			$channel = 1; //channel for scan qrcode
-			//check if already in the network
-			$check_network = \DB::table('tbl_network')
-				->where([['net_member_id', '=', $member_id], ['net_network_id', '=', $network_id->mem_id]])
-				->first();
-			if (count($check_network) == 0)
+			if(!empty($network_id) && $network_id->mem_id != $member_id)
 			{
-			    if (count($network_id) <> 0 && count($device_id) <> 0)
+			    $device_id = \DB::table('tbl_device')
+				    ->where([['dev_mem_id', '=', $network_id->mem_id], ['dev_device_id', '=', $qrcode[0]]])
+				    ->first();
+			    $channel = 1; //channel for scan qrcode
+			    //check if already in the network
+			    $check_network = \DB::table('tbl_network')
+				    ->where([['net_member_id', '=', $member_id], ['net_network_id', '=', $network_id->mem_id]])
+				    ->first();
+			    if (count($check_network) == 0)
 			    {
-				$result = $this->__addNetwork($member_id, $network_id->mem_id, $channel, \Swirf::getLatitude(), \Swirf::getLongitude());
-				if(!empty($result))
+				if (count($network_id) <> 0 && count($device_id) <> 0)
 				{
-				    $this->code = CC::RESPONSE_SUCCESS;
-				    $this->results = $result;
+				    $result = $this->__addNetwork($member_id, $network_id->mem_id, $channel, \Swirf::getLatitude(), \Swirf::getLongitude());
+				    if(!empty($result))
+				    {
+					$this->code = CC::RESPONSE_SUCCESS;
+					$this->results = $result;
+				    }
+				    else
+				    {
+					$this->message = 'cannot add network';
+					$this->status = RS::HTTP_INTERNAL_SERVER_ERROR;
+				    }
 				}
 				else
 				{
-				    $this->message = 'cannot add network';
-				    $this->status = RS::HTTP_INTERNAL_SERVER_ERROR;
+				    $this->message = 'Device id or member not found';
+				    $this->status = RS::HTTP_NOT_FOUND;
 				}
 			    }
 			    else
 			    {
-				$this->message = 'Device id or member not found';
-				$this->status = RS::HTTP_NOT_FOUND;
+				$this->message = 'Player already in the address book!';
+				$this->status = RS::HTTP_BAD_REQUEST;
 			    }
 			}
 			else
 			{
-			    $this->message = 'Player already in the address book!';
+			    $this->message = 'Player not found';
 			    $this->status = RS::HTTP_BAD_REQUEST;
 			}
 			//$result = $qrcode[3];
