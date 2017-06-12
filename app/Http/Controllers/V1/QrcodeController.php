@@ -41,7 +41,7 @@ class QrcodeController extends Controller {
     public function scan()
     {
 	$validator = Validator::make(\Swirf::input(null, true), [
-		    'qrcode' => 'required',
+	    'qrcode' => 'required',
 	]);
 
 	if (!$validator->fails())
@@ -72,7 +72,7 @@ class QrcodeController extends Controller {
 	    {
 		//$this->results = $scan;
 		$this->message = 'You are reaching the limit to scan the same QRcode!';
-		$this->code = CC::RESPONSE_SUCCESS;
+		$this->status = RS::HTTP_BAD_REQUEST;
 		return $this->json();
 		exit();
 	    }
@@ -99,11 +99,21 @@ class QrcodeController extends Controller {
 				    'partner_id' => $qrcode[3],
 			]);
 			$result = $this->__grabItem($collected_items[0]->geo_id, $collected_items[0]->itm_id, $collected_items[0]->itm_collection_id, $qrcode[3], '3', $member_id, \Swirf::getLatitude(), \Swirf::getLongitude());
-			//$result = $qrcode[3];
+			if(empty($result))
+			{
+			    $this->status = RS::HTTP_INTERNAL_SERVER_ERROR;
+			    $this->message = 'cannot grab item';
+			}
+			else
+			{
+			    $this->code = CC::RESPONSE_SUCCESS;
+			    $this->results = $result;
+			}
 			break;
 
 		    case '2' : //QR Product
-			$result = $qrcode[3];
+			$this->code = CC::RESPONSE_SUCCESS;
+			$this->results = $qrcode[3];
 			break;
 
 		    case '3' : //QR Outlet
@@ -118,11 +128,13 @@ class QrcodeController extends Controller {
 				->first();
 			if (count($outlet) <> 0)
 			{
-			    $result = $outlet;
+			    $this->code = CC::RESPONSE_SUCCESS;
+			    $this->results = $outlet;
 			}
 			else
 			{
-			    $result = ['message' => 'Outlet not found!'];
+			    $this->message = 'Outlet not found';
+			    $this->status = RS::HTTP_NOT_FOUND;
 			}
 			break;
 
@@ -148,53 +160,67 @@ class QrcodeController extends Controller {
 			    if (count($network_id) <> 0 && count($device_id) <> 0)
 			    {
 				$result = $this->__addNetwork($member_id, $network_id->mem_id, $channel, \Swirf::getLatitude(), \Swirf::getLongitude());
+				if(!empty($result))
+				{
+				    $this->code = CC::RESPONSE_SUCCESS;
+				    $this->results = $result;
+				}
+				else
+				{
+				    $this->message = 'cannot add network';
+				    $this->status = RS::HTTP_INTERNAL_SERVER_ERROR;
+				}
 			    }
 			    else
 			    {
-				$result = ['message' => 'Device id or member not found'];
+				$this->message = 'Device id or member not found';
+				$this->status = RS::HTTP_NOT_FOUND;
 			    }
 			}
 			else
 			{
-			    $result = ['message' => 'Player already in the address book!'];
+			    $this->message = 'Player already in the address book!';
+			    $this->status = RS::HTTP_BAD_REQUEST;
 			}
 			//$result = $qrcode[3];
 			break;
 
 		    case '6' : //QR Buy
-			$result = $qrcode[3];
+			$this->code = CC::RESPONSE_SUCCESS;
+			$this->results = $qrcode[3];
 			break;
 
 		    case '7' : //QR Event
-			$result = $qrcode[3];
+			$this->code = CC::RESPONSE_SUCCESS;
+			$this->results = $qrcode[3];
 			break;
 
 		    default :
-			$result = "Can't find QRCode in the database";
+			$this->message = "Can't find QRCode in the database";
+			$this->status = RS::HTTP_BAD_REQUEST;
 			break;
 		}
 
-		if ($qr_id == "")
+		if($this->code == CC::RESPONSE_SUCCESS)
 		{
-		    $qrt_id = "";
+		    if ($qr_id == "")
+		    {
+			$qrt_id = "";
+		    }
+		    else
+		    {
+			$qrt_id = $qr_id->qrt_id;
+		    }
+		    //insert into tbl_qr_scanned once the proses done
+		    \DB::table('tbl_qr_scanned')->insert(
+			    [
+				'qrn_member_id' => $member_id,
+				'qrn_qrmaster_id' => $qrt_id,
+				'qrn_qrcode' => \Swirf::input()->qrcode,
+				'qrn_datetime' => time(),
+			    ]
+		    );
 		}
-		else
-		{
-		    $qrt_id = $qr_id->qrt_id;
-		}
-		//insert into tbl_qr_scanned once the proses done
-		\DB::table('tbl_qr_scanned')->insert(
-			[
-			    'qrn_member_id' => $member_id,
-			    'qrn_qrmaster_id' => $qrt_id,
-			    'qrn_qrcode' => \Swirf::input()->qrcode,
-			    'qrn_datetime' => time(),
-			]
-		);
-
-		$this->results = $result;
-		$this->message = 'QRCode successfuly scanned!';
-		$this->code = CC::RESPONSE_SUCCESS;
 
 		\DB::commit();
 	    } catch (\Exception $e) {
