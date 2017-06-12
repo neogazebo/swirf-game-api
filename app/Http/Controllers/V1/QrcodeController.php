@@ -159,7 +159,7 @@ class QrcodeController extends Controller {
 				{
 				    if(!empty($reward))
 				    {
-					$redeem = $this->__redeem($reward->red_id, $redeemable_member->rmr_id, $reward->red_counter, $member_id);
+					$redeem = $this->__redeem($reward->red_id, $redeemable_member->rmr_id, $reward->red_counter, $member_id, $outlet->out_id);
 					if(!empty($redeem))
 					{
 					    $this->code = CC::RESPONSE_SUCCESS;
@@ -554,7 +554,7 @@ class QrcodeController extends Controller {
 	return (count($valid) > 0) ? $valid[0] : null;
     }
     
-    private function __redeem($reward_id, $member_redeemable_id, $previous_counter, $member_id)
+    private function __redeem($reward_id, $member_redeemable_id, $previous_counter, $member_id, $outlet_id)
     {
 	$counter = (int) $previous_counter + 1;
 	try{
@@ -562,10 +562,11 @@ class QrcodeController extends Controller {
 	    
 	    $statement_1 = 'update tbl_rel_member_redeemable set'
 		    . ' rmr_redeemed = 1, '
+		    . ' rmr_redeemed_outlet_id = :outlet_id, '
 		    . ' rmr_redeemed_datetime = UNIX_TIMESTAMP() '
 		    . ' where rmr_id = :member_redeem_id';
 	    
-	    \DB::update($statement_1, ['member_redeem_id' => $member_redeemable_id]);
+	    \DB::update($statement_1, ['member_redeem_id' => $member_redeemable_id, 'outlet_id' => $outlet_id]);
 	    
 	    $statement_2 = 'update tbl_redeemable set'
 		    . ' red_counter = :counter '
