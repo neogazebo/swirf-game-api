@@ -510,9 +510,9 @@ class QrcodeController extends Controller {
 
 	    \DB::commit();
 
-	    //todo: Delete cache for network both side
-	    //Redis::deleteNetworkCache($member_id);
-	    //Redis::deleteNetworkCache($network_id);
+	    Redis::deleteNetworkMember($member_id);
+	    Redis::deleteNetworkMember($network_id);
+	    
 	} catch (\Exception $e) {
 	    \DB::rollBack();
 	    $payload = [];
