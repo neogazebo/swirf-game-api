@@ -48,7 +48,6 @@ class QrcodeController extends Controller {
 	{
 	    $member_id = \Swirf::getMember()->mem_id;
 	    $qrcode = explode('/', $this->__encryptdecrypt(\Swirf::input()->qrcode, true));
-//	    dump($qrcode);exit;
 	    $qr_id = 0;
 	    if ($qrcode[1] <> 5)
 	    {
@@ -59,24 +58,24 @@ class QrcodeController extends Controller {
 	    }
 
 	    //if qr_type <> qr profile then check if user already scan the qr code or not, max 1 scan in a day
-//	    $statement = 'select * from tbl_qr_scanned where qrn_member_id=:mem_id and qrn_qrcode=:qrcode and '
-//		    . '(date(from_unixtime(qrn_datetime))=curdate()) '
-//		    . 'order by qrn_id desc limit 1';
-//
-//	    $scan = \DB::select($statement, [
-//			'mem_id' => $member_id,
-//			'qrcode' => \Swirf::input()->qrcode,
-//	    ]);
-//
-//	    //limit the scan process only once in a day except scaning the QR Profile (qr_type=5)
-//	    if (count($scan) <> 0 && $qrcode[1] <> 5 && $qrcode[1] <> 3)
-//	    {
-//		//$this->results = $scan;
-//		$this->message = 'You are reaching the limit to scan the same QRcode!';
-//		$this->status = RS::HTTP_BAD_REQUEST;
-//		return $this->json();
-//		exit();
-//	    }
+	    $statement = 'select * from tbl_qr_scanned where qrn_member_id=:mem_id and qrn_qrcode=:qrcode and '
+		    . '(date(from_unixtime(qrn_datetime))=curdate()) '
+		    . 'order by qrn_id desc limit 1';
+
+	    $scan = \DB::select($statement, [
+			'mem_id' => $member_id,
+			'qrcode' => \Swirf::input()->qrcode,
+	    ]);
+
+	    //limit the scan process only once in a day except scaning the QR Profile (qr_type=5)
+	    if (count($scan) <> 0 && $qrcode[1] <> 5 && $qrcode[1] <> 3)
+	    {
+		//$this->results = $scan;
+		$this->message = 'You are reaching the limit to scan the same QRcode!';
+		$this->status = RS::HTTP_BAD_REQUEST;
+		return $this->json();
+		exit();
+	    }
 	    /* QR Mode
 	      1	Play AR	triggers an augmented reality animation
 	      2	Win Carousel	triggers the prize caroussel
