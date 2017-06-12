@@ -145,7 +145,7 @@ class ItemController extends Controller {
 		clc_partner_id as partner_id,
 		clc_status as collection_status,
 		par_name as partner_name
-		from tbl_collected_item_collection
+		from tbl_collected_collection
 		inner join tbl_collection on coc_collection_id=clc_id
 		left join tbl_partner on clc_partner_id=par_id
 		where coc_member_id=:mem_id
