@@ -155,18 +155,26 @@ class QrcodeController extends Controller {
 			    if(!empty($outlet) && !empty($redeemable_member))
 			    {
 				$reward = $this->__validRedeemTime($reward_id);
-				if(!empty($reward))
+				if($reward->red_partner_id == $outlet->out_partner_id)
 				{
-				    $redeem = $this->__redeem($reward->red_id, $redeemable_member->rmr_id, $reward->red_counter, $member_id);
-				    if(!empty($redeem))
+				    if(!empty($reward))
 				    {
-					$this->code = CC::RESPONSE_SUCCESS;
-					$this->results = $redeem;
+					$redeem = $this->__redeem($reward->red_id, $redeemable_member->rmr_id, $reward->red_counter, $member_id);
+					if(!empty($redeem))
+					{
+					    $this->code = CC::RESPONSE_SUCCESS;
+					    $this->results = $redeem;
+					}
+				    }
+				    else
+				    {
+					$this->message = 'reward expired';
+					$this->status = RS::HTTP_BAD_REQUEST;
 				    }
 				}
 				else
 				{
-				    $this->message = 'reward expired';
+				    $this->message = 'invalid reward item';
 				    $this->status = RS::HTTP_BAD_REQUEST;
 				}
 			    }
