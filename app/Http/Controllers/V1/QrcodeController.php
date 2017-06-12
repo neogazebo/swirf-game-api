@@ -16,7 +16,7 @@ class QrcodeController extends Controller {
     public function generate()
     {
 	$validator = Validator::make(\Swirf::input(null, true), [
-	    'qrcode' => 'required',
+		    'qrcode' => 'required',
 	]);
 
 	if (!$validator->fails())
@@ -41,7 +41,7 @@ class QrcodeController extends Controller {
     public function scan()
     {
 	$validator = Validator::make(\Swirf::input(null, true), [
-	    'qrcode' => 'required',
+		    'qrcode' => 'required',
 	]);
 
 	if (!$validator->fails())
@@ -59,24 +59,24 @@ class QrcodeController extends Controller {
 	    }
 
 	    //if qr_type <> qr profile then check if user already scan the qr code or not, max 1 scan in a day
-	    $statement = 'select * from tbl_qr_scanned where qrn_member_id=:mem_id and qrn_qrcode=:qrcode and '
-		    . '(date(from_unixtime(qrn_datetime))=curdate()) '
-		    . 'order by qrn_id desc limit 1';
-
-	    $scan = \DB::select($statement, [
-			'mem_id' => $member_id,
-			'qrcode' => \Swirf::input()->qrcode,
-	    ]);
-
-	    //limit the scan process only once in a day except scaning the QR Profile (qr_type=5)
-	    if (count($scan) <> 0 && $qrcode[1] <> 5 && $qrcode[1] <> 3)
-	    {
-		//$this->results = $scan;
-		$this->message = 'You are reaching the limit to scan the same QRcode!';
-		$this->status = RS::HTTP_BAD_REQUEST;
-		return $this->json();
-		exit();
-	    }
+//	    $statement = 'select * from tbl_qr_scanned where qrn_member_id=:mem_id and qrn_qrcode=:qrcode and '
+//		    . '(date(from_unixtime(qrn_datetime))=curdate()) '
+//		    . 'order by qrn_id desc limit 1';
+//
+//	    $scan = \DB::select($statement, [
+//			'mem_id' => $member_id,
+//			'qrcode' => \Swirf::input()->qrcode,
+//	    ]);
+//
+//	    //limit the scan process only once in a day except scaning the QR Profile (qr_type=5)
+//	    if (count($scan) <> 0 && $qrcode[1] <> 5 && $qrcode[1] <> 3)
+//	    {
+//		//$this->results = $scan;
+//		$this->message = 'You are reaching the limit to scan the same QRcode!';
+//		$this->status = RS::HTTP_BAD_REQUEST;
+//		return $this->json();
+//		exit();
+//	    }
 	    /* QR Mode
 	      1	Play AR	triggers an augmented reality animation
 	      2	Win Carousel	triggers the prize caroussel
@@ -100,7 +100,7 @@ class QrcodeController extends Controller {
 				    'partner_id' => $qrcode[3],
 			]);
 			$result = $this->__grabItem($collected_items[0]->geo_id, $collected_items[0]->itm_id, $collected_items[0]->itm_collection_id, $qrcode[3], '3', $member_id, \Swirf::getLatitude(), \Swirf::getLongitude());
-			if(empty($result))
+			if (empty($result))
 			{
 			    $this->status = RS::HTTP_INTERNAL_SERVER_ERROR;
 			    $this->message = 'cannot grab item';
@@ -139,8 +139,50 @@ class QrcodeController extends Controller {
 			}
 			break;
 
-		    case '4' : //QR Redeem type 1
-			$result = $qrcode[3];
+		    case '4' :
+			$validator_redeem = Validator::make(\Swirf::input(null, true), [
+			    'pin' => 'required',
+			    'reward_id' => 'required',
+			]);
+
+			if (!$validator_redeem->fails())
+			{
+			    $pin = \Swirf::input()->pin;
+			    $reward_id = \Swirf::input()->reward_id;
+			    
+			    $outlet = $this->__checkPINOutlet($qrcode[3], $pin);
+			    $redeemable_member = $this->__checkRedeemableItem($reward_id, $member_id);
+			    
+			    if(!empty($outlet) && !empty($redeemable_member))
+			    {
+				$reward = $this->__validRedeemTime($reward_id);
+				if(!empty($reward))
+				{
+				    $redeem = $this->__redeem($reward->red_id, $redeemable_member->rmr_id, $reward->red_counter);
+				    if(!empty($redeem))
+				    {
+					$this->code = CC::RESPONSE_SUCCESS;
+					$this->results = $redeem;
+				    }
+				}
+				else
+				{
+				    $this->message = 'reward expired';
+				    $this->status = RS::HTTP_BAD_REQUEST;
+				}
+			    }
+			    else
+			    {
+				$this->message = 'invalid PIN / item not valid';
+				$this->status = RS::HTTP_BAD_REQUEST;
+			    }
+			}
+			else
+			{
+			    $this->status = RS::HTTP_BAD_REQUEST;
+			    $this->results = $validator_redeem->errors();
+			    $this->message = 'Error Parameters';
+			}
 			break;
 
 		    case '5' : //QR Profile
@@ -149,7 +191,7 @@ class QrcodeController extends Controller {
 			$network_id = \DB::table('tbl_member')
 				->where([['mem_acc_id', '=', $qrcode[3]]])
 				->first();
-			if(!empty($network_id) && $network_id->mem_id != $member_id)
+			if (!empty($network_id) && $network_id->mem_id != $member_id)
 			{
 			    $device_id = \DB::table('tbl_device')
 				    ->where([['dev_mem_id', '=', $network_id->mem_id], ['dev_device_id', '=', $qrcode[0]]])
@@ -164,7 +206,7 @@ class QrcodeController extends Controller {
 				if (count($network_id) <> 0 && count($device_id) <> 0)
 				{
 				    $result = $this->__addNetwork($member_id, $network_id->mem_id, $channel, \Swirf::getLatitude(), \Swirf::getLongitude());
-				    if(!empty($result))
+				    if (!empty($result))
 				    {
 					$this->code = CC::RESPONSE_SUCCESS;
 					$this->results = $result;
@@ -211,7 +253,7 @@ class QrcodeController extends Controller {
 			break;
 		}
 
-		if($this->code == CC::RESPONSE_SUCCESS)
+		if ($this->code == CC::RESPONSE_SUCCESS)
 		{
 		    if ($qr_id == "")
 		    {
@@ -476,6 +518,65 @@ class QrcodeController extends Controller {
 	    \DB::rollBack();
 	    $payload = [];
 	}
+	return $payload;
+    }
+    
+    private function __checkPINOutlet($outlet_id, $pin)
+    {
+	$statement = 'select * from tbl_outlet where out_id = :outlet_id and out_pincode = :pin limit 0,1';
+	$outlet = \DB::select($statement, ['outlet_id' => $outlet_id, 'pin' => $pin]);
+	
+	return (count($outlet) > 0) ?  $outlet[0] : null;
+    }
+    
+    private function __checkRedeemableItem($reward_id, $member_id)
+    {
+	$statement = 'select * from tbl_rel_member_redeemable where rmr_member_id = :member_id and rmr_redeemable_id = :reward_id and rmr_redeemed != 1 limit 0,1';
+	
+	$redeemable = \DB::select($statement, ['member_id' => $member_id, 'reward_id' => $reward_id]);
+	
+	return (count($redeemable) > 0) ? $redeemable[0] : null;
+    }
+    
+    private function __validRedeemTime($reward_id)
+    {
+	$statement = 'select * from tbl_redeemable where red_id = :reward_id and UNIX_TIMESTAMP() between red_start_datetime and red_end_datetime limit 0,1';
+	
+	$valid = \DB::select($statement, ['reward_id' => $reward_id]);
+	
+	return (count($valid) > 0) ? $valid[0] : null;
+    }
+    
+    private function __redeem($reward_id, $member_redeemable_id, $previous_counter)
+    {
+	$counter = (int) $previous_counter + 1;
+	try{
+	    \DB::beginTransaction();
+	    
+	    $statement_1 = 'update tbl_rel_member_redeemable set'
+		    . ' rmr_redeemed = 1, '
+		    . ' rmr_redeemed_datetime = UNIX_TIMESTAMP() '
+		    . ' where rmr_id = :member_redeem_id';
+	    
+	    \DB::update($statement_1, ['member_redeem_id' => $member_redeemable_id]);
+	    
+	    $statement_2 = 'update tbl_redeemable set'
+		    . ' red_counter = :counter '
+		    . ' where red_id = :reward_id';
+	    
+	    \DB::update($statement_2, ['counter' => $counter, 'reward_id' => $reward_id]);
+	    
+	    $payload = [
+		'reward_id' => $reward_id,
+	    ];
+	    
+	    \DB::commit();
+	    
+	} catch (Exception $ex) {
+	    \DB::rollBack();
+	    $payload = [];
+	}
+	
 	return $payload;
     }
 
