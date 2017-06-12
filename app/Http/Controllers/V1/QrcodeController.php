@@ -157,7 +157,7 @@ class QrcodeController extends Controller {
 				$reward = $this->__validRedeemTime($reward_id);
 				if(!empty($reward))
 				{
-				    $redeem = $this->__redeem($reward->red_id, $redeemable_member->rmr_id, $reward->red_counter);
+				    $redeem = $this->__redeem($reward->red_id, $redeemable_member->rmr_id, $reward->red_counter, $member_id);
 				    if(!empty($redeem))
 				    {
 					$this->code = CC::RESPONSE_SUCCESS;
@@ -546,7 +546,7 @@ class QrcodeController extends Controller {
 	return (count($valid) > 0) ? $valid[0] : null;
     }
     
-    private function __redeem($reward_id, $member_redeemable_id, $previous_counter)
+    private function __redeem($reward_id, $member_redeemable_id, $previous_counter, $member_id)
     {
 	$counter = (int) $previous_counter + 1;
 	try{
@@ -570,6 +570,8 @@ class QrcodeController extends Controller {
 	    ];
 	    
 	    \DB::commit();
+	    
+	    Redis::deleteRewardMember($member_id);
 	    
 	} catch (Exception $ex) {
 	    \DB::rollBack();
