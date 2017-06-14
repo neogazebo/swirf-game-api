@@ -141,20 +141,20 @@ class QrcodeController extends Controller {
 		    case '4' :
 			$validator_redeem = Validator::make(\Swirf::input(null, true), [
 			    'pin' => 'required',
-			    'reward_id' => 'required',
+			    'reward_member_id' => 'required',
 			]);
 
 			if (!$validator_redeem->fails())
 			{
 			    $pin = \Swirf::input()->pin;
-			    $reward_id = \Swirf::input()->reward_id;
+			    $reward_member_id = \Swirf::input()->reward_member_id;
 			    
 			    $outlet = $this->__checkPINOutlet($qrcode[3], $pin);
-			    $redeemable_member = $this->__checkRedeemableItem($reward_id, $member_id);
+			    $redeemable_member = $this->__checkRedeemableItem($reward_member_id, $member_id);
 			    
 			    if(!empty($outlet) && !empty($redeemable_member))
 			    {
-				$reward = $this->__validRedeemTime($reward_id);
+				$reward = $this->__validRedeemTime($redeemable_member->rmr_redeemable_id);
 				if($reward->red_partner_id == $outlet->out_partner_id)
 				{
 				    if(!empty($reward))
@@ -536,11 +536,11 @@ class QrcodeController extends Controller {
 	return (count($outlet) > 0) ?  $outlet[0] : null;
     }
     
-    private function __checkRedeemableItem($reward_id, $member_id)
+    private function __checkRedeemableItem($reward_member_id, $member_id)
     {
-	$statement = 'select * from tbl_rel_member_redeemable where rmr_member_id = :member_id and rmr_redeemable_id = :reward_id and rmr_redeemed != 1 limit 0,1';
+	$statement = 'select * from tbl_rel_member_redeemable where rmr_member_id = :member_id and rmr_id = :reward_id and rmr_redeemed != 1 limit 0,1';
 	
-	$redeemable = \DB::select($statement, ['member_id' => $member_id, 'reward_id' => $reward_id]);
+	$redeemable = \DB::select($statement, ['member_id' => $member_id, 'reward_id' => $reward_member_id]);
 	
 	return (count($redeemable) > 0) ? $redeemable[0] : null;
     }
@@ -576,6 +576,9 @@ class QrcodeController extends Controller {
 	    
 	    $payload = [
 		'reward_id' => $reward_id,
+		'member_id' => $member_id,
+		'outlet_id' => $outlet_id,
+		'member_reward_id' => $member_redeemable_id
 	    ];
 	    
 	    \DB::commit();
