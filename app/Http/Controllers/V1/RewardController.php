@@ -18,15 +18,24 @@ class RewardController extends Controller {
 	$member_id = \Swirf::getMember()->mem_id;
 	$reward = $this->__getReward($member_id);
 	
-	if(count($reward) == 0)
+	$this->code = CC::RESPONSE_SUCCESS;
+	$this->results = $reward;
+	
+	return $this->json();
+    }
+    
+    public function detail($member_reward_id)
+    {
+	$reward_detail = $this->__getDetailReward($member_reward_id);
+	if(!empty($reward_detail))
 	{
-	    $this->message = 'reward empty';
+	    $this->results = $reward_detail;
 	    $this->code = CC::RESPONSE_SUCCESS;
 	}
 	else
 	{
-	    $this->code = CC::RESPONSE_SUCCESS;
-	    $this->results = $reward;
+	    $this->message = 'reward detail not available';
+	    $this->status = RS::HTTP_BAD_REQUEST;
 	}
 	
 	return $this->json();
@@ -57,5 +66,28 @@ class RewardController extends Controller {
 	Redis::setRewardMember($member_id, json_encode($reward));
 	
 	return $reward;
+    }
+    
+    private function __getDetailReward($member_reward_id)
+    {
+	$cdn = env('CDN_REWARD');
+	$statement = 'select'
+		. ' red_id as reward_id,'
+		. ' par_id as partner_id,'
+		. ' red_name as reward_name,'
+		. ' par_name as partner_name,'
+		. ' red_start_datetime as reward_start_date,'
+		. ' red_end_datetime as reward_end_date,'
+		. ' rmr_redeemed as reward_redeemed,'
+		. ' IF(red_image <> "", CONCAT("' . $cdn . '",red_image), "") as reward_image'
+		. ' from tbl_rel_member_redeemable'
+		. ' left join tbl_redeemable on red_id = rmr_redeemable_id'
+		. ' left join tbl_partner on par_id = red_partner_id'
+		. ' left join tbl_category on cat_id = red_category_id'
+		. ' where rmr_id = :member_reward_id limit 0,1';
+	
+	$reward_detail = \DB::select($statement, ['member_reward_id' => $member_reward_id]);
+	
+	return (count($reward_detail > 0)) ? $reward_detail[0] : null;
     }
 }

@@ -17,7 +17,7 @@ class CoreMiddleware {
      */
     public function handle($request, Closure $next)
     {
-	if (!$request->is('v1/webhook/*'))
+	if (!$request->is('v1/webhook/*') && $request->path() != '/')
 	{
 	    $checkHeader = $this->checkHeader($request->header());
 	    if (!($checkHeader->success))
