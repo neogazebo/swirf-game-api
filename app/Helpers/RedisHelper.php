@@ -88,7 +88,7 @@ class RedisHelper {
     }
     
     //Reward Member Cache
-    public static function setRewardMember($id, $data)
+    public static function setRewardMember($id, $data, $expired = null)
     {
 	Redis::pipeline(function ($pipe) use ($id, $data) {
 	    foreach ($data as $row) {
@@ -129,7 +129,7 @@ class RedisHelper {
     
     
     //Network Cache
-    public static function setNetworkMember($id, $data, $expired)
+    public static function setNetworkMember($id, $data, $expired = null)
     {
 	Redis::pipeline(function ($pipe) use ($id, $data) {
 	    foreach ($data as $row) {
