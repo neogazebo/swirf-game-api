@@ -67,21 +67,21 @@ class ItemController extends Controller {
 	return $this->json();
     }
 
-    public function collectedItem()
+    public function collectedItem($page = CC::DEFAULT_PAGE, $size = CC::DEFAULT_SIZE)
     {
-	$collections = $this->__getCollectedItems(\Swirf::getMember()->mem_id);
+	$start = ($page - 1) * $size;
+	$end = $start + $size - 1;
+	$this->results['more'] = false;
 
-	if (count($collections) <> 0)
+	$collections = $this->__getCollectedItems(\Swirf::getMember()->mem_id, $start, $end);
+
+	if (count($collections) == $size)
 	{
-	    $this->code = CC::RESPONSE_SUCCESS;
-	    $this->results = $collections;
-	    $this->message = "Successful pulling the collected items.";
+	    $this->results['more'] = true;
 	}
-	else
-	{
-	    $this->code = CC::RESPONSE_SUCCESS;
-	    $this->message = "No collection, please try to grab an item first.";
-	}
+
+	$this->code = CC::RESPONSE_SUCCESS;
+	$this->results['results'] = $collections;
 
 	return $this->json();
     }
@@ -120,14 +120,13 @@ class ItemController extends Controller {
 	return $this->json();
     }
 
-    private function __getCollectedItems($member_id)
+    private function __getCollectedItems($member_id, $start, $end)
     {
 
-	$collections = Redis::getCollectedItems($member_id);
-
-	if (!empty($collections))
+	$is_exist = Redis::checkCollectedItems($member_id);
+	if ($is_exist)
 	{
-	    return json_decode($collections);
+	    return Redis::getCollectedItems($member_id, $start, $end);
 	}
 
 	$cdn = env('CDN_ITEM');
@@ -180,9 +179,9 @@ class ItemController extends Controller {
 	    }
 	}
 
-	Redis::setCollectedItems($member_id, json_encode($collections));
+	Redis::setCollectedItems($member_id, $collections);
 
-	return $collections;
+	return Redis::getCollectedItems($member_id, $start, $end);
     }
 
     private function __grabItem($geo_id, $item_id, $collection_id, $partner_id, $element_id, $member, $latitude, $longitude)
