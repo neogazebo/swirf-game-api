@@ -49,7 +49,7 @@ $app->group(['prefix' => 'v1', 'namespace' => 'V1'], function() use ($app) {
 
 	//Reward
 	$app->group(['prefix' => 'reward'], function() use ($app) {
-	    $app->get('list', 'RewardController@listAll');
+	    $app->get('list[/{page}[/{size}]]', 'RewardController@listAll');
 	    $app->get('detail/{member_reward_id}', 'RewardController@detail');
 	});
 

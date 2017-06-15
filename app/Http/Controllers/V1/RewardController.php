@@ -13,13 +13,22 @@ class RewardController extends Controller {
 
     use AppTrait;
     
-    public function listAll()
+    public function listAll($page = 1, $size = 20)
     {
+	$start = ($page - 1) * $size;
+	$end = $start + $size - 1;
+	$this->results['more'] = false;
+	
 	$member_id = \Swirf::getMember()->mem_id;
-	$reward = $this->__getReward($member_id);
+	$reward = $this->__getReward($member_id, $start, $end);
+	
+	if(count($reward) == $size)
+	{
+	    $this->results['more'] = true;
+	}
 	
 	$this->code = CC::RESPONSE_SUCCESS;
-	$this->results = $reward;
+	$this->results['result'] = $reward;
 	
 	return $this->json();
     }
@@ -41,18 +50,18 @@ class RewardController extends Controller {
 	return $this->json();
     }
     
-    private function __getReward($member_id)
+    private function __getReward($member_id, $start, $end)
     {
-	$reward = Redis::getRewardMember($member_id);
+	$reward = Redis::getRewardMember($member_id, $start, $end);
 	
 	if(!empty($reward))
 	{
-	    return json_decode($reward);
+	    return $reward;
 	}
 	
 	$statement = 'select '
+		. ' rmr_id as member_reward_id,'
 		. ' red_id as reward_id,'
-		. ' rmr_id as reward_redeemable_id,'
 		. ' red_name as reward_name,'
 		. ' rmr_redeemed as reward_redeemed,'
 		. ' red_start_datetime as reward_start_datetime,'
@@ -63,9 +72,9 @@ class RewardController extends Controller {
 	
 	$reward = \DB::select($statement, ['member_id' => $member_id]);
 	
-	Redis::setRewardMember($member_id, json_encode($reward));
+	Redis::setRewardMember($member_id, $reward);
 	
-	return $reward;
+	return Redis::getRewardMember($member_id, $start, $end);
     }
     
     private function __getDetailReward($member_reward_id)
