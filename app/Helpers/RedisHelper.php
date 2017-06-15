@@ -43,28 +43,28 @@ class RedisHelper {
 
     public static function setRewardMember($id, $data)
     {
-	Redis::pipeline(function ($pipe) use ($id, $data){
-	    foreach ($data as $row){
+	Redis::pipeline(function ($pipe) use ($id, $data) {
+	    foreach ($data as $row) {
 		$pipe->zadd(CC::PREFIX_REWARD_MEMBER . $id, $row->member_reward_id, json_encode($row));
 	    }
 	});
     }
+    
+    public static function checkRewardMember($id)
+    {
+	return Redis::command('EXISTS', [CC::PREFIX_REWARD_MEMBER . $id]);
+    }
 
     public static function getRewardMember($id, $start, $end)
     {
-	$is_exist = Redis::command('EXISTS', [CC::PREFIX_REWARD_MEMBER . $id]);
-	if(!$is_exist)
-	{
-	    return null;
-	}
-	
 	$data = Redis::command('ZRANGE', [CC::PREFIX_REWARD_MEMBER . $id, $start, $end]);
-	
-	foreach($data as $key => $val)
+
+	if (!empty($data))
+	foreach ($data as $key => $val) 
 	{
 	    $data[$key] = json_decode($val);
 	}
-	
+
 	return $data;
     }
 

@@ -52,11 +52,10 @@ class RewardController extends Controller {
     
     private function __getReward($member_id, $start, $end)
     {
-	$reward = Redis::getRewardMember($member_id, $start, $end);
-	
-	if(!empty($reward))
+	$is_exist = Redis::checkRewardMember($member_id);
+	if($is_exist)
 	{
-	    return $reward;
+	    return Redis::getRewardMember($member_id, $start, $end);
 	}
 	
 	$statement = 'select '
