@@ -32,9 +32,15 @@ class CommonConstants
 
     //REDIS CACHE
     const PREFIX_PROFILE = 'profile:';
-    const PREFIX_COLECTED_ITEMS = 'item:collected:' ;
-    const PREFIX_REWARD_MEMBER = 'reward:' ;
-    const PREFIX_NETWORK_MEMBER = 'network:' ;
+    const PREFIX_PROFILE_EXPIRED = 86400;
+    const PREFIX_COLECTED_ITEMS_LIST = 'item:collected:';
+    const PREFIX_COLECTED_ITEMS_EXPIRED = 2592000;
+    const PREFIX_REWARD_MEMBER_LIST = 'reward:';
+    const PREFIX_REWARD_MEMBER_EXPIRED = 2592000;
+    const PREFIX_REWARD_DETAIL = 'reward:detail:';
+    const PREFIX_REWARD_DETAIL_EXPIRED = 86400;
+    const PREFIX_NETWORK_MEMBER_LIST = 'network:';
+    const PREFIX_NETWORK_MEMBER_EXPIRED = 2592000;
     
     //API PAY endpoints
     const APIPAY_SIGNIN = '/v1/auth/signin';

@@ -38,7 +38,8 @@ class RewardController extends Controller {
 	$reward_detail = $this->__getDetailReward($member_reward_id);
 	if(!empty($reward_detail))
 	{
-	    $this->results = $reward_detail;
+	    $this->results['more'] = true;
+	    $this->results['result'] = $reward_detail;
 	    $this->code = CC::RESPONSE_SUCCESS;
 	}
 	else
@@ -78,6 +79,12 @@ class RewardController extends Controller {
     
     private function __getDetailReward($member_reward_id)
     {
+	$reward_detail = Redis::getRewardDetail($member_reward_id);
+	if(!empty($reward_detail))
+	{
+	    return json_decode($reward_detail);
+	}
+	
 	$cdn = env('CDN_REWARD');
 	$statement = 'select'
 		. ' red_id as reward_id,'
@@ -96,6 +103,12 @@ class RewardController extends Controller {
 	
 	$reward_detail = \DB::select($statement, ['member_reward_id' => $member_reward_id]);
 	
-	return (count($reward_detail > 0)) ? $reward_detail[0] : null;
+	if (count($reward_detail) > 0)
+	{
+	    Redis::setRewardDetail($member_reward_id, json_encode($reward_detail[0]));
+	    return $reward_detail[0];
+	}
+
+	return null;
     }
 }

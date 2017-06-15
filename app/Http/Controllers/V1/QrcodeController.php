@@ -554,7 +554,7 @@ class QrcodeController extends Controller {
 	return (count($valid) > 0) ? $valid[0] : null;
     }
     
-    private function __redeem($reward_id, $member_redeemable_id, $previous_counter, $member_id, $outlet_id)
+    private function __redeem($reward_id, $member_reward_id, $previous_counter, $member_id, $outlet_id)
     {
 	$counter = (int) $previous_counter + 1;
 	try{
@@ -566,7 +566,7 @@ class QrcodeController extends Controller {
 		    . ' rmr_redeemed_datetime = UNIX_TIMESTAMP() '
 		    . ' where rmr_id = :member_redeem_id';
 	    
-	    \DB::update($statement_1, ['member_redeem_id' => $member_redeemable_id, 'outlet_id' => $outlet_id]);
+	    \DB::update($statement_1, ['member_redeem_id' => $member_reward_id, 'outlet_id' => $outlet_id]);
 	    
 	    $statement_2 = 'update tbl_redeemable set'
 		    . ' red_counter = :counter '
@@ -578,12 +578,13 @@ class QrcodeController extends Controller {
 		'reward_id' => $reward_id,
 		'member_id' => $member_id,
 		'outlet_id' => $outlet_id,
-		'member_reward_id' => $member_redeemable_id
+		'member_reward_id' => $member_reward_id
 	    ];
 	    
 	    \DB::commit();
 	    
 	    Redis::deleteRewardMember($member_id);
+	    Redis::deleteRewardDetail($member_reward_id);
 	    
 	} catch (Exception $ex) {
 	    \DB::rollBack();
