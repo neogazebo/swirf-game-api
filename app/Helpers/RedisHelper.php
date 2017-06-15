@@ -90,15 +90,35 @@ class RedisHelper {
     {
 	Redis::command('DEL', [CC::PREFIX_REWARD_MEMBER . $id]);
     }
-
+    
+    
+    //Network Cache
     public static function setNetworkMember($id, $data)
     {
-	Redis::set(CC::PREFIX_NETWORK_MEMBER . $id, $data);
+	Redis::pipeline(function ($pipe) use ($id, $data) {
+	    foreach ($data as $row) {
+		$pipe->zadd(CC::PREFIX_NETWORK_MEMBER . $id, $row->network_id, json_encode($row));
+	    }
+	});
+    }
+    
+    public static function checkNetworkMember($id)
+    {
+	return Redis::command('EXISTS', [CC::PREFIX_NETWORK_MEMBER . $id]);
     }
 
-    public static function getNetworkMember($id)
+    public static function getNetworkMember($id, $start, $end)
     {
-	return Redis::get(CC::PREFIX_NETWORK_MEMBER . $id);
+	$data = Redis::command('ZRANGE', [CC::PREFIX_NETWORK_MEMBER . $id, $start, $end]);
+
+	if (!empty($data)){
+	    foreach ($data as $key => $val) 
+	    {
+		$data[$key] = json_decode($val);
+	    }
+	}
+
+	return $data;
     }
 
     public static function deleteNetworkMember($id)
