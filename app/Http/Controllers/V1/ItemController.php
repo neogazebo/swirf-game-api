@@ -13,9 +13,13 @@ class ItemController extends Controller {
 
     use AppTrait;
 
-    public function listItem()
+    public function listItem($page = CC::DEFAULT_PAGE, $size = CC::DEFAULT_SIZE)
     {
 	//limit to 2KM nearby
+	$start = ($page - 1) * $size;
+	$limit = 'LIMIT ' . $start . ',' . $size;
+	$this->results['more'] = false;
+
 	$cdn = env('CDN_ITEM');
 	$statement = '
 			select 
@@ -42,8 +46,7 @@ class ItemController extends Controller {
 							 * COS(RADIANS(:lon) - RADIANS(geo_longitude))
 							 + SIN(RADIANS(:lat2))
 							 * SIN(RADIANS(geo_latitude)))) <2
-			and itm_id not in (select col_item_id from tbl_collected_item where col_member_id = :mem_id)
-		';
+			and itm_id not in (select col_item_id from tbl_collected_item where col_member_id = :mem_id) ' . $limit;
 
 	$items = \DB::select($statement, [
 		    'mem_id' => \Swirf::getMember()->mem_id,
@@ -53,19 +56,14 @@ class ItemController extends Controller {
 	]);
 
 
-	if (count($items) <> 0)
+	if (count($items) == $size)
 	{
+	    $this->results['more'] = true;
+	}
 
-	    $this->code = CC::RESPONSE_SUCCESS;
-	    $this->results = ['count' => count($items), 'items' => $items];
-	    $this->message = "Successful pulling the item list";
-	}
-	else
-	{
-	    $this->code = CC::RESPONSE_SUCCESS;
-	    $this->results = ['count' => count($items), 'items' => $items];
-	    $this->message = "No items to show, please try again later.";
-	}
+	$this->code = CC::RESPONSE_SUCCESS;
+	$this->results['result'] = $items;
+
 	return $this->json();
     }
 

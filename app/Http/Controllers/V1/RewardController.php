@@ -13,7 +13,7 @@ class RewardController extends Controller {
 
     use AppTrait;
     
-    public function listAll($page = 1, $size = 20)
+    public function listAll($page = CC::DEFAULT_PAGE, $size = CC::DEFAULT_SIZE)
     {
 	$start = ($page - 1) * $size;
 	$end = $start + $size - 1;

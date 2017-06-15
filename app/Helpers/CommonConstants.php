@@ -39,4 +39,8 @@ class CommonConstants
     //API PAY endpoints
     const APIPAY_SIGNIN = '/v1/auth/signin';
     const APIPAY_SIGNIN_GOOGLE = '/v1/auth/signin/google';
+    
+    //PAGING
+    const DEFAULT_PAGE = 1;
+    const DEFAULT_SIZE = 20;
 }

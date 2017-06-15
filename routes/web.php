@@ -42,7 +42,7 @@ $app->group(['prefix' => 'v1', 'namespace' => 'V1'], function() use ($app) {
 
 	//Item
 	$app->group(['prefix' => 'item'], function() use ($app) {
-	    $app->get('list', 'ItemController@listItem');
+	    $app->get('list[/{page}[/{size}]]', 'ItemController@listItem');
 	    $app->get('collected', 'ItemController@collectedItem');
 	    $app->post('grab', 'ItemController@grabItem');
 	});
