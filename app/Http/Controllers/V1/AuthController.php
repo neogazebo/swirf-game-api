@@ -20,24 +20,24 @@ class AuthController extends Controller {
     public function register()
     {
 	$validator = Validator::make(\Swirf::input(null, true), [
-	    'email' => [
-		'required',
-		'email',
-		Rule::unique('tbl_member', 'mem_email')->where(function ($query) {
-		    $query->where('mem_signup_channel', CC::MEMBER_LOGIN_VIA_EMAIL);
-		})
+		    'email' => [
+			'required',
+			'email',
+			Rule::unique('tbl_member', 'mem_email')->where(function ($query) {
+				    $query->where('mem_signup_channel', CC::MEMBER_LOGIN_VIA_EMAIL);
+				})
 //		'unique:tbl_member,mem_email'
-	    ],
-	    'password' => 'required|string',
-	    'phone' => [
-		'required',
-		Rule::unique('tbl_member', 'mem_mobile')->where(function ($query) {
-		    $query->where('mem_signup_channel', CC::MEMBER_LOGIN_VIA_EMAIL);
-		})
+		    ],
+		    'password' => 'required|string',
+		    'phone' => [
+			'required',
+			Rule::unique('tbl_member', 'mem_mobile')->where(function ($query) {
+				    $query->where('mem_signup_channel', CC::MEMBER_LOGIN_VIA_EMAIL);
+				})
 //		'unique:tbl_member,mem_mobile'
-	    ],
-	    'name' => 'required|string',
-	    'device_id' => 'required|string'
+		    ],
+		    'name' => 'required|string',
+		    'device_id' => 'required|string'
 	]);
 
 	if (!$validator->fails())
@@ -81,7 +81,7 @@ class AuthController extends Controller {
 		}
 		else
 		{
-		    $this->message = 'error from pay api : '.$swirf_account['message'];
+		    $this->message = 'error from pay api : ' . $swirf_account['message'];
 		    $this->status = RS::HTTP_UNAUTHORIZED;
 		}
 	    }
@@ -180,48 +180,43 @@ class AuthController extends Controller {
 
 	if (!$validator->fails())
 	{
-	    $swirf_account = SP::signinGoogle(\Swirf::input()->email, \Swirf::input()->phone, self::COUNTRY, \Swirf::input()->google_id, \Swirf::input()->name);
-
-	    if ($swirf_account->code() == CC::RESPONSE_FAILED)
+	    $member = $this->__getMemberByGoogleID(\Swirf::input()->google_id);
+	    if (empty($member))
 	    {
-		$this->status = $swirf_account->status();
-		$this->message = 'Cannot connect to pay api';
+		$this->message = 'member unregistered';
+		$this->status = RS::HTTP_UNAUTHORIZED;
 	    }
 	    else
 	    {
-		$swirf_account = $swirf_account->result();
-		if ($swirf_account['success'] == true)
+		if ($member->mem_status_flag != CC::MEMBER_STATUS_ACTIVE)
 		{
-		    try {
-			\DB::beginTransaction();
-
-			$member = $this->__getMemberbyAccountId($swirf_account['data']['id']);
-			if ($member == null)
-			{
-			    $member_id = $this->__storeMember($swirf_account['data']['id'], CC::MEMBER_LOGIN_VIA_GOOGLE, \Swirf::input()->name, \Swirf::input()->phone, \Swirf::input()->email, \Swirf::input()->email, \Swirf::input()->google_id, CC::MEMBER_STATUS_ACTIVE, self::COUNTRY);
-			}
-			else
-			{
-			    $member_id = $member->mem_id;
-			}
-			\DB::table('tbl_device')->where('dev_device_id', \Swirf::input()->device_id)->update(['dev_mem_id' => $member_id]);
-			//TODO : put member data to redis
-
-			\DB::commit();
-
-			$this->code = CC::RESPONSE_SUCCESS;
-			$this->results = ['token' => $swirf_account['data']['token']];
-			$this->message = 'Success login';
-		    } catch (\Exception $e) {
-			\DB::rollBack();
-			$this->status = $e->getMessage();
-			$this->message = 'Error server';
-		    }
+		    $this->message = 'member not active';
+		    $this->status = RS::HTTP_UNAUTHORIZED;
 		}
 		else
 		{
-		    $this->message = $swirf_account['message'];
-		    $this->status = RS::HTTP_UNAUTHORIZED;
+		    $swirf_account = SP::signinGoogle(\Swirf::input()->email, $member->mem_mobile, self::COUNTRY, \Swirf::input()->google_id, $member->mem_name);
+		    if ($swirf_account->code() == CC::RESPONSE_FAILED)
+		    {
+			$this->status = $swirf_account->status();
+			$this->message = 'Cannot connect to pay api';
+		    }
+		    else
+		    {
+			$swirf_account = $swirf_account->result();
+			if ($swirf_account['success'] == true)
+			{
+			    \DB::table('tbl_device')->where('dev_device_id', \Swirf::input()->device_id)->update(['dev_mem_id' => $member->mem_id]);
+			    $this->code = CC::RESPONSE_SUCCESS;
+			    $this->results = ['token' => $swirf_account['data']['token']];
+			    $this->message = 'Success login';
+			}
+			else
+			{
+			    $this->message = $swirf_account['message'];
+			    $this->status = RS::HTTP_UNAUTHORIZED;
+			}
+		    }
 		}
 	    }
 	}
@@ -237,33 +232,32 @@ class AuthController extends Controller {
 
     public function logout(Request $request)
     {
-	$validator = Validator::make($request->all(), [
-		    'device_id' => 'required|string'
+	$validator = Validator::make(\Swirf::input(null, true), [
+	    'device_id' => 'required'
 	]);
 
 	if (!$validator->fails())
 	{
+	    $member = \Swirf::getMember();
 	    // UPDATE DEVICE
 	    \DB::table('tbl_device')->where([
-		['dev_device_id', '=', $request->device_id],
-		['dev_mem_id', '=', $request->mem_id],
-	    ])->update(['dev_mem_id' => null, 'mem_token' => null]);
+		['dev_device_id', '=', \Swirf::input()->device_id],
+		['dev_mem_id', '=', $member->mem_id],
+	    ])->update(['dev_mem_id' => null]);
+	    
+	    Redis::deleteProfileCache($member->mem_acc_id);
 
-	    $status = 200;
-	    $code = 1;
-	    $result = [];
-	    $message = 'Success Logout';
+	    $this->status = RS::HTTP_OK;
+	    $this->code = CC::RESPONSE_SUCCESS;
+	    $this->message = 'logout success';
 	}
 	else
 	{
-	    $status = 400;
-	    $code = 0;
-	    $result = $validator->errors();
-	    $message = 'Error Parameters';
+	    $this->status = RS::HTTP_BAD_REQUEST;
+	    $message = $validator->errors();;
 	}
 
-	$content = ['code' => $code, 'message' => $message, 'result' => $result];
-	return response($content, $status);
+	return $this->json();
     }
 
     private function __storeMember($account_id, $chanel, $name, $phone, $email, $gmail, $google_id, $status, $country)
@@ -286,9 +280,9 @@ class AuthController extends Controller {
     private function __getMemberbyAccountId($account_id)
     {
 	$result = null;
-	
+
 	$member = Redis::getProfileCache($account_id);
-	if(!empty($member))
+	if (!empty($member))
 	{
 	    return json_decode($member);
 	}
@@ -302,6 +296,14 @@ class AuthController extends Controller {
 	}
 
 	return $result;
+    }
+
+    private function __getMemberByGoogleID($google_id)
+    {
+	$statement = 'select * from tbl_member where mem_google_id = :google_id and mem_signup_channel = :signup_channel limit 0,1';
+	$member = \DB::select($statement, ['google_id' => $google_id, 'signup_channel' => CC::MEMBER_LOGIN_VIA_GOOGLE]);
+
+	return (count($member) > 0) ? $member[0] : null;
     }
 
 }

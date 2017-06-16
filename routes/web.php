@@ -21,10 +21,7 @@ $app->group(['prefix' => 'v1', 'namespace' => 'V1'], function() use ($app) {
 	$app->post('register', 'AuthController@register');
 	$app->post('login', 'AuthController@login');
 	$app->post('login/google', 'AuthController@loginGoogle');
-	$app->post('logout', [
-	    'middleware' => 'Auth',
-	    'uses' => 'AuthController@logout'
-	]);
+	$app->post('logout', 'AuthController@logout');
     });
 
     //Admin webhooks
@@ -40,6 +37,7 @@ $app->group(['prefix' => 'v1', 'namespace' => 'V1'], function() use ($app) {
     //all endpoint that need token
     $app->group(['middleware' => 'token'], function() use ($app) {
 
+	$app->post('auth/logout', 'AuthController@logout');
 	//Item
 	$app->group(['prefix' => 'item'], function() use ($app) {
 	    $app->get('list[/{page}[/{size}]]', 'ItemController@listItem');
