@@ -19,6 +19,7 @@ $app->group(['prefix' => 'v1', 'namespace' => 'V1'], function() use ($app) {
     //Auth endpoint
     $app->group(['prefix' => 'auth'], function() use ($app) {
 	$app->post('register', 'AuthController@register');
+	$app->post('register/google', 'AuthController@registerGoogle');
 	$app->post('login', 'AuthController@login');
 	$app->post('login/google', 'AuthController@loginGoogle');
 	$app->post('logout', 'AuthController@logout');
