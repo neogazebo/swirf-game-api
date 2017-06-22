@@ -130,6 +130,7 @@ class ItemController extends Controller {
 	}
 
 	$cdn = env('CDN_ITEM');
+	$cdn_reward = env('CDN_REWARD');
 	$statement = '
 		select 
 		coc_id as collected_id,
@@ -139,6 +140,7 @@ class ItemController extends Controller {
 		clc_start_date as collection_start_date,
 		clc_end_date as collection_end_date,
 		coc_datetime as collected_creation_date,
+		IF(red_image <> "", CONCAT("' . $cdn_reward . '",red_image), "") as reward_image,
 		coc_flag as collected_flag,
 		coc_completed_datetime as collected_completed_date,
 		coc_redeemed_datetime as collected_redeemed_date,
@@ -148,6 +150,7 @@ class ItemController extends Controller {
 		from tbl_collected_collection
 		inner join tbl_collection on coc_collection_id=clc_id
 		left join tbl_partner on clc_partner_id=par_id
+		left join tbl_redeemable on red_id = clc_redeemable_id
 		where coc_member_id=:mem_id
 	';
 
