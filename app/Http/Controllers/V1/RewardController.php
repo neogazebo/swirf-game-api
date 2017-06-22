@@ -53,6 +53,8 @@ class RewardController extends Controller {
     
     private function __getReward($member_id, $start, $end)
     {
+	$cdn = env('CDN_REWARD');
+	
 	$is_exist = Redis::checkRewardMember($member_id);
 	if($is_exist)
 	{
@@ -63,6 +65,7 @@ class RewardController extends Controller {
 		. ' rmr_id as member_reward_id,'
 		. ' red_id as reward_id,'
 		. ' red_name as reward_name,'
+		. ' IF(red_image <> "", CONCAT("' . $cdn . '",red_image), "") as reward_image,'
 		. ' rmr_redeemed as reward_redeemed,'
 		. ' red_start_datetime as reward_start_datetime,'
 		. ' `red_end_datetime` as reward_end_datetime'
